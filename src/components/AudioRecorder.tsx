@@ -12,6 +12,12 @@ export default function AudioRecorder() {
   const chunksRef = useRef<BlobPart[]>([]);
   const [elapsed, setElapsed] = useState(0);
   const timerRef = useRef<number | null>(null);
+  const [recMime, setRecMime] = useState<string>("");
+
+  // Devices
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [deviceId, setDeviceId] = useState<string>("");
+  const devicesPrimedRef = useRef(false);
 
   // Waveform
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -40,6 +46,59 @@ export default function AudioRecorder() {
       audioCtxRef.current?.close().catch(() => undefined);
     };
   }, []);
+
+  // Persist selected input device across sessions
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("meetingnote.inputDeviceId") || "";
+      if (saved) setDeviceId(saved);
+    } catch { /* ignore */ }
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem("meetingnote.inputDeviceId", deviceId || "");
+    } catch { /* ignore */ }
+  }, [deviceId]);
+
+  // Enumerate devices initially and on devicechange
+  async function refreshDevices() {
+    try {
+      const list = await navigator.mediaDevices.enumerateDevices();
+      setDevices(list.filter(d => d.kind === "audioinput"));
+    } catch {
+      // ignore
+    }
+  }
+  useEffect(() => {
+    refreshDevices();
+    const handler = () => refreshDevices();
+    try { navigator.mediaDevices.addEventListener("devicechange", handler); } catch { /* older browsers */ }
+    return () => {
+      try { navigator.mediaDevices.removeEventListener("devicechange", handler); } catch { /* ignore */ }
+    };
+  }, []);
+
+  // Prompt for permission to reveal device labels without starting recording
+  async function primeMicForDevices() {
+    setStatus("Requesting permission to list devices...");
+    try {
+      const tmp = await navigator.mediaDevices.getUserMedia({ audio: true });
+      tmp.getTracks().forEach(t => t.stop());
+      await refreshDevices();
+      setStatus("");
+      showToast("Microphone permission granted");
+      devicesPrimedRef.current = true;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setStatus("");
+      showToast(`Permission error: ${msg}`);
+    }
+  }
+
+  async function ensureDevicesLoaded() {
+    if (devicesPrimedRef.current) return;
+    await primeMicForDevices();
+  }
 
   function drawWave() {
     const canvas = canvasRef.current;
@@ -70,12 +129,70 @@ export default function AudioRecorder() {
   async function start() {
     setResult("");
     setStatus("Accessing microphone...");
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    let stream: MediaStream;
+    try {
+      const constraints: MediaStreamConstraints = {
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1,
+          ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+        },
+      };
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setStatus(`Microphone error: ${msg}`);
+      showToast(`Microphone error: ${msg}`);
+      return;
+    }
     mediaRef.current = stream;
+    // Refresh device list (labels require permission)
+    try {
+      const list = await navigator.mediaDevices.enumerateDevices();
+      setDevices(list.filter(d => d.kind === "audioinput"));
+    } catch {
+      // ignore
+    }
     chunksRef.current = [];
-    const rec = new MediaRecorder(stream, { mimeType: "audio/webm" });
+    // Prefer a supported MIME type for better compatibility (Safari/Firefox/Chrome)
+    const candidates = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/ogg;codecs=opus",
+      "audio/mp4;codecs=aac",
+    ];
+    const supported = candidates.find((t) =>
+      typeof MediaRecorder !== "undefined" &&
+      (MediaRecorder as unknown as { isTypeSupported?: (t: string) => boolean }).isTypeSupported?.(t)
+    );
+    let rec: MediaRecorder;
+    try {
+      rec = supported ? new MediaRecorder(stream, { mimeType: supported }) : new MediaRecorder(stream);
+      setRecMime(rec.mimeType || supported || "");
+    } catch (e) {
+      // As a last resort, try constructing without options
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        rec = new (MediaRecorder as any)(stream);
+        setRecMime(rec.mimeType || "");
+      } catch {
+        const msg = e instanceof Error ? e.message : String(e);
+        setStatus(`Recorder error: ${msg}`);
+        showToast(`Recorder error: ${msg}`);
+        return;
+      }
+    }
     rec.ondataavailable = e => {
       if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
+    };
+    rec.onerror = (ev) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const err = (ev as any)?.error as Error | undefined;
+      const msg = err?.message || "Recorder error";
+      setStatus(msg);
+      showToast(msg);
     };
     // Setup audio context for waveform
     try {
@@ -93,7 +210,12 @@ export default function AudioRecorder() {
       analyser.fftSize = 1024;
       const bufferLength = analyser.fftSize;
       const dataArray = new Uint8Array(bufferLength);
+      // Ensure the graph is pulled by connecting to a muted gain -> destination
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
       source.connect(analyser);
+      analyser.connect(gain);
+      try { gain.connect((ctx as unknown as { destination?: AudioNode }).destination as AudioNode); } catch (_e) { /* ignore */ }
       audioCtxRef.current = ctx;
       analyserRef.current = analyser;
       waveDataRef.current = dataArray;
@@ -205,6 +327,26 @@ export default function AudioRecorder() {
 
   return (
     <div className="stack">
+      <div className="row" style={{ alignItems: "stretch" }}>
+        <label htmlFor="inputDevice" className="hint" style={{ display: "grid" }}>
+          Input device
+          <select
+            id="inputDevice"
+            className="btn btn-secondary"
+            value={deviceId}
+            onChange={(e) => setDeviceId(e.target.value)}
+            disabled={recording}
+            onFocus={ensureDevicesLoaded}
+            onMouseDown={ensureDevicesLoaded}
+          >
+            <option value="">Default</option>
+            {devices.map(d => (
+              <option key={d.deviceId} value={d.deviceId}>{d.label || `Device ${d.deviceId.slice(0,6)}`}</option>
+            ))}
+          </select>
+        </label>
+        
+      </div>
       <div className="row">
         <button
           className={recording ? "btn btn-danger" : "btn"}
@@ -219,7 +361,7 @@ export default function AudioRecorder() {
         )}
       </div>
       <canvas ref={canvasRef} className="wave" height={80} />
-      <div className="status" aria-live="polite">{status}</div>
+      <div className="status" aria-live="polite">{status} {recMime && `(format: ${recMime})`}</div>
       <details>
         <summary className="hint">Connection Diagnostics</summary>
         <div className="toolbar" style={{ margin: "8px 0" }}>

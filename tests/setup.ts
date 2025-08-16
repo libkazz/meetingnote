@@ -54,6 +54,7 @@ const fakeStream: MediaStream = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ;(globalThis as any).navigator.mediaDevices = {
   getUserMedia: vi.fn(async () => fakeStream),
+  enumerateDevices: vi.fn(async () => []),
 }
 
 // Minimal AudioContext mock
@@ -70,6 +71,12 @@ class MockAudioContext {
   }
   createAnalyser() {
     return new MockAnalyser() as unknown as AnalyserNode
+  }
+  createGain() {
+    return {
+      gain: { value: 1 },
+      connect: () => undefined,
+    } as unknown as GainNode
   }
   close() { return Promise.resolve() }
   resume() { this.state = 'running'; return Promise.resolve() }

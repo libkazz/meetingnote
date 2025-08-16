@@ -113,11 +113,18 @@ export async function diagnoseConnection(): Promise<DiagnoseResult> {
       body: form,
       headers: cfg.hasApiKey ? { Authorization: `Bearer ${readEnv("N8N_API_KEY")}` } : undefined,
     });
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: `HTTP ${res.status} ${res.statusText}`,
+        cfg,
+      } as const;
+    }
     const headers = {
       "access-control-allow-origin": res.headers.get("access-control-allow-origin"),
       "content-type": res.headers.get("content-type"),
     };
-    return { ok: res.ok, status: res.status, statusText: res.statusText, headers, cfg } as const;
+    return { ok: true, status: res.status, statusText: res.statusText, headers, cfg } as const;
   } catch (e) {
     const err = e as Error;
     const kind = err.name === "AbortError" ? "timeout" : err instanceof TypeError ? "network" : "other";
