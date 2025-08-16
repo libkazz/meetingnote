@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
-import { transcribeAudio, diagnoseConnection, getRuntimeConfig }
-  from "../lib/api/n8n-client";
+import { transcribeAudio, diagnoseConnection, getRuntimeConfig } from "../lib/api/n8n-client";
 import type { DiagnoseResult } from "../lib/api/n8n-client";
+import DeviceSelector from "./DeviceSelector";
+import WaveformCanvas from "./WaveformCanvas";
+import { useAudioDevices } from "../hooks/use-audio-devices";
 
 export default function AudioRecorder() {
   const [recording, setRecording] = useState(false);
@@ -13,18 +15,12 @@ export default function AudioRecorder() {
   const [elapsed, setElapsed] = useState(0);
   const timerRef = useRef<number | null>(null);
   const [recMime, setRecMime] = useState<string>("");
-
-  // Devices
-  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
-  const [deviceId, setDeviceId] = useState<string>("");
-  const devicesPrimedRef = useRef(false);
+  const { devices, deviceId, setDeviceId, ensureDevicesLoaded } = useAudioDevices();
 
   // Waveform
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  const waveDataRef = useRef<Uint8Array | null>(null);
   const rafRef = useRef<number | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Toast
   const [toast, setToast] = useState<string>("");
@@ -47,84 +43,7 @@ export default function AudioRecorder() {
     };
   }, []);
 
-  // Persist selected input device across sessions
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("meetingnote.inputDeviceId") || "";
-      if (saved) setDeviceId(saved);
-    } catch { /* ignore */ }
-  }, []);
-  useEffect(() => {
-    try {
-      localStorage.setItem("meetingnote.inputDeviceId", deviceId || "");
-    } catch { /* ignore */ }
-  }, [deviceId]);
-
-  // Enumerate devices initially and on devicechange
-  async function refreshDevices() {
-    try {
-      const list = await navigator.mediaDevices.enumerateDevices();
-      setDevices(list.filter(d => d.kind === "audioinput"));
-    } catch {
-      // ignore
-    }
-  }
-  useEffect(() => {
-    refreshDevices();
-    const handler = () => refreshDevices();
-    try { navigator.mediaDevices.addEventListener("devicechange", handler); } catch { /* older browsers */ }
-    return () => {
-      try { navigator.mediaDevices.removeEventListener("devicechange", handler); } catch { /* ignore */ }
-    };
-  }, []);
-
-  // Prompt for permission to reveal device labels without starting recording
-  async function primeMicForDevices() {
-    setStatus("Requesting permission to list devices...");
-    try {
-      const tmp = await navigator.mediaDevices.getUserMedia({ audio: true });
-      tmp.getTracks().forEach(t => t.stop());
-      await refreshDevices();
-      setStatus("");
-      showToast("Microphone permission granted");
-      devicesPrimedRef.current = true;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setStatus("");
-      showToast(`Permission error: ${msg}`);
-    }
-  }
-
-  async function ensureDevicesLoaded() {
-    if (devicesPrimedRef.current) return;
-    await primeMicForDevices();
-  }
-
-  function drawWave() {
-    const canvas = canvasRef.current;
-    const analyser = analyserRef.current;
-    const data = waveDataRef.current;
-    if (!canvas || !analyser || !data) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const { width, height } = canvas;
-    analyser.getByteTimeDomainData(data);
-    ctx.clearRect(0, 0, width, height);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "rgba(91,140,255,0.9)";
-    ctx.beginPath();
-    const slice = width / data.length;
-    let x = 0;
-    for (let i = 0; i < data.length; i++) {
-      const v = data[i] / 128.0; // 0..255 -> around 1.0 baseline
-      const y = (v * height) / 2;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-      x += slice;
-    }
-    ctx.stroke();
-    rafRef.current = requestAnimationFrame(drawWave);
-  }
+  // Waveform drawing handled by WaveformCanvas
 
   async function start() {
     setResult("");
@@ -148,13 +67,7 @@ export default function AudioRecorder() {
       return;
     }
     mediaRef.current = stream;
-    // Refresh device list (labels require permission)
-    try {
-      const list = await navigator.mediaDevices.enumerateDevices();
-      setDevices(list.filter(d => d.kind === "audioinput"));
-    } catch {
-      // ignore
-    }
+    // Devices are managed by useAudioDevices hook
     chunksRef.current = [];
     // Prefer a supported MIME type for better compatibility (Safari/Firefox/Chrome)
     const candidates = [
@@ -208,8 +121,6 @@ export default function AudioRecorder() {
       const source = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 1024;
-      const bufferLength = analyser.fftSize;
-      const dataArray = new Uint8Array(bufferLength);
       // Ensure the graph is pulled by connecting to a muted gain -> destination
       const gain = ctx.createGain();
       gain.gain.value = 0;
@@ -218,23 +129,7 @@ export default function AudioRecorder() {
       try { gain.connect((ctx as unknown as { destination?: AudioNode }).destination as AudioNode); } catch (_e) { /* ignore */ }
       audioCtxRef.current = ctx;
       analyserRef.current = analyser;
-      waveDataRef.current = dataArray;
-      // Fit canvas to element width (consider devicePixelRatio)
-      const c = canvasRef.current;
-      const resize = () => {
-        if (!c) return;
-        const dpr = window.devicePixelRatio || 1;
-        const w = Math.max(1, Math.floor(c.clientWidth * dpr));
-        const h = Math.max(1, Math.floor(c.clientHeight * dpr));
-        c.width = w;
-        c.height = h;
-      };
-      resize();
-      window.addEventListener("resize", resize);
-      // Store remover in rafRef using negative sentinel to avoid extra ref
-      (rafRef as unknown as { resize?: () => void }).resize = () =>
-        window.removeEventListener("resize", resize);
-      drawWave();
+      // WaveformCanvas reacts to analyser changes
     } catch {
       // Non-fatal: waveform not available
     }
@@ -268,8 +163,7 @@ export default function AudioRecorder() {
     if (timerRef.current) window.clearInterval(timerRef.current);
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     audioCtxRef.current?.close().catch(() => undefined);
-    const remover = (rafRef as unknown as { resize?: () => void }).resize;
-    if (remover) remover();
+    analyserRef.current = null;
   }
 
   function pad(n: number): string { return n < 10 ? `0${n}` : String(n); }
@@ -328,24 +222,13 @@ export default function AudioRecorder() {
   return (
     <div className="stack">
       <div className="row" style={{ alignItems: "stretch" }}>
-        <label htmlFor="inputDevice" className="hint" style={{ display: "grid" }}>
-          Input device
-          <select
-            id="inputDevice"
-            className="btn btn-secondary"
-            value={deviceId}
-            onChange={(e) => setDeviceId(e.target.value)}
-            disabled={recording}
-            onFocus={ensureDevicesLoaded}
-            onMouseDown={ensureDevicesLoaded}
-          >
-            <option value="">Default</option>
-            {devices.map(d => (
-              <option key={d.deviceId} value={d.deviceId}>{d.label || `Device ${d.deviceId.slice(0,6)}`}</option>
-            ))}
-          </select>
-        </label>
-        
+        <DeviceSelector
+          devices={devices}
+          value={deviceId}
+          onChange={setDeviceId}
+          disabled={recording}
+          ensureDevicesLoaded={ensureDevicesLoaded}
+        />
       </div>
       <div className="row">
         <button
@@ -360,7 +243,7 @@ export default function AudioRecorder() {
           </span>
         )}
       </div>
-      <canvas ref={canvasRef} className="wave" height={80} />
+      <WaveformCanvas analyser={analyserRef.current} height={80} />
       <div className="status" aria-live="polite">{status} {recMime && `(format: ${recMime})`}</div>
       <details>
         <summary className="hint">Connection Diagnostics</summary>
