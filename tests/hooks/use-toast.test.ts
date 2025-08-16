@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useToast } from '../src/hooks/use-toast'
+import { useToast } from '../../src/hooks/use-toast'
 
 describe('useToast', () => {
   it('shows and auto-hides toast message', () => {

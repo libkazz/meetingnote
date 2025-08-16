@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
-import { useAudioDevices } from '../src/hooks/use-audio-devices'
+import { useAudioDevices } from '../../src/hooks/use-audio-devices'
 
 describe('useAudioDevices', () => {
   it('enumerates devices and persists selection', async () => {
@@ -8,7 +8,6 @@ describe('useAudioDevices', () => {
       { deviceId: 'x', kind: 'audioinput', label: 'X' } as MediaDeviceInfo,
       { deviceId: 'y', kind: 'audioinput', label: 'Y' } as MediaDeviceInfo,
     ]
-    // Mock enumerateDevices per test
     ;(navigator.mediaDevices.enumerateDevices as unknown as jest.Mock).mockResolvedValueOnce(devices)
 
     const { result } = renderHook(() => useAudioDevices())

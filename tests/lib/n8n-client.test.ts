@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import * as n8nClient from '../src/lib/api/n8n-client'
+import * as n8nClient from '../../src/lib/api/n8n-client'
 
 const okJson = (obj: unknown) =>
   new Response(JSON.stringify(obj), {
@@ -18,35 +18,6 @@ describe('n8n-client', () => {
   afterEach(() => {
     vi.restoreAllMocks()
   })
-
-  // TODO: This test is skipped because of persistent issues with mocking import.meta.env.
-  // The getConfig function should be refactored to allow for dependency injection
-  // to make it more easily testable.
-  // it('sends FormData to the full API URL when proxy is disabled', async () => {
-  //   // Arrange: Mock environment for a direct API call
-  //   readEnvSpy.mockImplementation((key: string) => {
-  //     switch (key) {
-  //       case 'USE_PROXY': return 'false'
-  //       case 'N8N_API_URL': return 'https://example.com/webhook/xyz'
-  //       case 'N8N_API_KEY': return 'KEY'
-  //       case 'UPLOAD_FIELD_NAME': return 'audio'
-  //       default: return undefined
-  //     }
-  //   })
-  //   const fetchMock = vi.mocked(fetch).mockResolvedValueOnce(okJson({ text: 'hi' }))
-  //   const blob = new Blob(['abc'], { type: 'audio/webm' })
-
-  //   // Act
-  //   const out = await n8nClient.transcribeAudio(blob)
-
-  //   // Assert
-  //   expect(out.text).toBe('hi')
-  //   expect(fetchMock).toHaveBeenCalledOnce()
-  //   const [url, init] = fetchMock.mock.calls[0]
-  //   expect(url).toBe('https://example.com/webhook/xyz')
-  //   expect(init.method).toBe('POST')
-  //   expect(init.headers).toEqual({ Authorization: 'Bearer KEY' })
-  // })
 
   it('uses the proxy URL when USE_PROXY is true', async () => {
     // Arrange
@@ -80,3 +51,4 @@ describe('n8n-client', () => {
     )
   })
 })
+
