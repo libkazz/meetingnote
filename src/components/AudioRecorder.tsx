@@ -1,9 +1,12 @@
+import React, { useEffect, useState } from "react";
 import { useAudioDevices } from "../hooks/use-audio-devices";
 import { useRecorder } from "../hooks/use-recorder";
 import { useToast } from "../hooks/use-toast";
+import { transcribeAudio } from "../lib/api/n8n-client";
 import DeviceSelector from "./DeviceSelector";
 import WaveformCanvas from "./WaveformCanvas";
 import DiagnosticsPanel from "./DiagnosticsPanel";
+import TranscriptActions from "./TranscriptActions";
 
 export default function AudioRecorder() {
   const [result, setResult] = useState<string>("");
@@ -110,20 +113,10 @@ export default function AudioRecorder() {
       <WaveformCanvas analyser={analyser} height={80} />
       <div className="status" aria-live="polite">{status} {recMime && `(format: ${recMime})`}</div>
       <DiagnosticsPanel />
-      {result && (
-        <>
-          <div className="toolbar">
-            <button className="btn btn-secondary" onClick={copyText}>📋 Copy</button>
-            <button className="btn btn-secondary" onClick={downloadText}>💾 Download</button>
-          </div>
-          <pre style={{ whiteSpace: "pre-wrap" }}>{result}</pre>
-        </>
-      )}
+      <TranscriptActions text={result} onCopy={copyText} onDownload={downloadText} />
       <div className="toaster" aria-live="polite">
         {toast && <div className="toast">{toast}</div>}
       </div>
     </div>
   );
 }
-import React, { useEffect, useState } from "react";
-import { transcribeAudio } from "../lib/api/n8n-client";
