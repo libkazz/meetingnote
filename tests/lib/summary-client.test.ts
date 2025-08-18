@@ -31,7 +31,7 @@ describe('summary-client', () => {
     await summary.summarizeText('hello world')
 
     const [url] = fetchMock.mock.calls[0]
-    expect(url).toBe('/api/n8n')
+    expect(url).toBe('/api/n8n/summary')
   })
 
   it('throws a formatted error on non-ok responses', async () => {
@@ -46,4 +46,3 @@ describe('summary-client', () => {
     await expect(summary.summarizeText('x', { timeoutMs: 5 })).rejects.toThrow(/The request timed out/)
   })
 })
-

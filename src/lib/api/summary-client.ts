@@ -10,7 +10,7 @@ export async function summarizeText(
   input: string,
   options?: { apiUrl?: string; apiKey?: string; timeoutMs?: number; fields?: Record<string, string | number | boolean> }
 ): Promise<SummaryResult> {
-  const cfg = getRuntimeConfig("N8N_SUMMARY_URL");
+  const cfg = getRuntimeConfig("N8N_SUMMARY_URL", "/api/n8n/summary");
   const apiUrl = options?.apiUrl || cfg.apiUrl;
   const apiKey = options?.apiKey || (readEnv("N8N_API_KEY") || undefined);
   const timeoutMs = options?.timeoutMs ?? cfg.timeoutMs;
@@ -55,4 +55,3 @@ export async function summarizeText(
 
 export { getRuntimeConfig } from "./n8n-common";
 export type { RuntimeConfig } from "./n8n-common";
-

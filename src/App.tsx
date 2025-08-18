@@ -1,5 +1,6 @@
 import React from "react";
 import AudioRecorder from "./components/AudioRecorder";
+import SummaryPanel from "./components/SummaryPanel";
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
         </p>
         <AudioRecorder />
       </section>
+      <SummaryPanel />
     </div>
   );
 }

@@ -17,7 +17,7 @@ export async function transcribeAudio(
   fileOrBlob: Blob,
   options?: { apiUrl?: string; apiKey?: string; signal?: AbortSignal; timeoutMs?: number; fields?: Record<string, string | number | boolean> }
 ): Promise<TranscribeResult> {
-  const cfg = getRuntimeConfig("N8N_TRANSCRIBE_URL");
+  const cfg = getRuntimeConfig("N8N_TRANSCRIBE_URL", "/api/n8n/transcribe");
   const apiUrl = options?.apiUrl || cfg.apiUrl;
   const apiKey = options?.apiKey || (readEnv("N8N_API_KEY") || undefined);
   const timeoutMs = options?.timeoutMs ?? cfg.timeoutMs;
@@ -73,4 +73,3 @@ export async function transcribeAudio(
 export { getRuntimeConfig } from "./n8n-common";
 export type { RuntimeConfig, DiagnoseResult } from "./n8n-common";
 export { diagnoseConnection, readEnv } from "./n8n-common";
-

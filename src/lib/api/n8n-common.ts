@@ -13,10 +13,10 @@ export function readEnv(name: string): string | undefined {
   return env?.[`VITE_${name}`] ?? env?.[name];
 }
 
-export function getRuntimeConfig(primaryVar: string): RuntimeConfig {
+export function getRuntimeConfig(primaryVar = "N8N_TRANSCRIBE_URL", proxyPath?: string): RuntimeConfig {
   const useProxy = (readEnv("USE_PROXY") || "").toLowerCase() === "true";
-  const directUrl = readEnv(primaryVar) || readEnv("N8N_API_URL"); // legacy fallback
-  const apiUrl = useProxy ? "/api/n8n" : (directUrl || "");
+  const directUrl = readEnv(primaryVar) || "";
+  const apiUrl = useProxy ? (proxyPath || "") : directUrl;
   const apiKey = readEnv("N8N_API_KEY");
   const timeoutMs = Number(readEnv("REQUEST_TIMEOUT_MS") || 60000);
   const fieldName = readEnv("UPLOAD_FIELD_NAME") || "audio";
@@ -74,4 +74,3 @@ export async function diagnoseConnection(primaryVar = "N8N_TRANSCRIBE_URL"): Pro
     return { ok: false, error: err.message, kind, cfg } as const;
   }
 }
-

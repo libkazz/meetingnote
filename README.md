@@ -70,7 +70,7 @@ scripts/curl-n8n.sh              # Minimal validation with curl
 
 ## Architecture Overview
 - Browser (Recording/UI) → n8n Webhook (audio via `multipart/form-data`) → Transcription Node → JSON response with `text`.
-- Frontend reads `VITE_N8N_TRANSCRIBE_URL` for the transcription endpoint (legacy: `VITE_N8N_API_URL`).
+- Frontend reads `VITE_N8N_TRANSCRIBE_URL` for the transcription endpoint.
 - Only frontend environment variables with the `VITE_` prefix are exposed. As a rule, do not keep secrets in the frontend.
 
 ## Detailed n8n Setup (Steps)

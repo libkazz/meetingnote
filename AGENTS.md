@@ -34,6 +34,6 @@ Prerequisite: Node.js 18+. The package manager is described using `npm` examples
 - Merge Conditions: CI green, lint/format pass, 1+ review.
 
 ## Security & Configuration
-- Environment Variables (example): `N8N_TRANSCRIBE_URL` (legacy: `N8N_API_URL`), `N8N_API_KEY`. Update `.env.example`.
+- Environment Variables (example): `N8N_TRANSCRIBE_URL`, `N8N_API_KEY`. Update `.env.example`.
 - Recording data should only be handled in memory/temporary storage; maintain the design of not persisting it. Do not log sensitive information.
 - Configure CORS and upload size/timeout appropriately.

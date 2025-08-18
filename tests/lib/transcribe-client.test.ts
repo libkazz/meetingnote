@@ -31,7 +31,7 @@ describe('transcribe-client', () => {
     await transcribe.transcribeAudio(new Blob(['x']))
 
     const [url] = fetchMock.mock.calls[0]
-    expect(url).toBe('/api/n8n')
+    expect(url).toBe('/api/n8n/transcribe')
   })
 
   it('throws a formatted error on non-ok responses', async () => {
@@ -50,4 +50,3 @@ describe('transcribe-client', () => {
     )
   })
 })
-
