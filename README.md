@@ -19,7 +19,8 @@ A minimal web app to record in-browser, transcribe with n8n, and display the res
 1) Prerequisite: Have Node.js 18+ installed, then install dependencies:
    - `npm install`
 2) Create a `.env` file (see example):
-   - `VITE_N8N_TRANSCRIBE_URL=https://<your-n8n>/webhook/<path>`
+   - `VITE_N8N_TRANSCRIBE_URL=https://<your-n8n>/webhook/<transcribe-path>`
+   - `VITE_N8N_SUMMARY_URL=https://<your-n8n>/webhook/<summary-path>`
    - `VITE_N8N_API_KEY=<optional>` (only if required by your Webhook)
    - `VITE_USE_PROXY=false` (set to `true` to bypass CORS in development)
    - `VITE_REQUEST_TIMEOUT_MS=60000`
@@ -35,6 +36,7 @@ Note: Environment variables exposed to the frontend must be prefixed with `VITE_
 src/
   components/AudioRecorder.tsx   # Recording/submission UI
   lib/api/transcribe-client.ts   # Transcription submission
+  lib/api/summary-client.ts      # Summary submission (text → summary)
   lib/api/n8n-common.ts          # Shared n8n helpers/diagnostics
   styles/global.css              # Theme/layout
 tests/                           # Vitest + Testing Library
