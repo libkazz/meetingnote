@@ -10,6 +10,7 @@ export type RecorderControls = {
   start: (opts?: { deviceId?: string; chunkMs?: number; ondata?: (chunk: Blob) => void }) => Promise<void>;
   stop: () => Promise<Blob>;
   cutSegment?: () => Promise<Blob>;
+  ensureAnalyser: () => Promise<boolean>;
 };
 
 export function useRecorder(): RecorderControls {
@@ -131,6 +132,30 @@ export function useRecorder(): RecorderControls {
     timerRef.current = window.setInterval(() => setElapsed((s) => s + 1), 1000);
   }
 
+  async function ensureAnalyser(): Promise<boolean> {
+    if (analyser || audioCtxRef.current) return true;
+    const stream = mediaRef.current;
+    if (!stream) return false;
+    try {
+      const AC = (((window as unknown) as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext || AudioContext) as typeof AudioContext;
+      const ctx = new AC();
+      if (ctx.state === "suspended") await ctx.resume().catch(() => undefined);
+      const source = ctx.createMediaStreamSource(stream);
+      const a = ctx.createAnalyser();
+      a.fftSize = 1024;
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      source.connect(a);
+      a.connect(gain);
+      try { gain.connect((ctx as unknown as { destination?: AudioNode }).destination as AudioNode); } catch (_e) { /* ignore */ }
+      audioCtxRef.current = ctx;
+      setAnalyser(a);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async function stop(): Promise<Blob> {
     return new Promise<Blob>((resolve) => {
       const rec = recRef.current;
@@ -209,5 +234,5 @@ export function useRecorder(): RecorderControls {
     });
   }
 
-  return { recording, status, setStatus, elapsed, recMime, analyser, start, stop, cutSegment };
+  return { recording, status, setStatus, elapsed, recMime, analyser, start, stop, cutSegment, ensureAnalyser };
 }

@@ -14,12 +14,13 @@ export default function AudioRecorder() {
   const [result, setResult] = useState<string>("");
   const [active, setActive] = useState<boolean>(false);
   const { devices, deviceId, setDeviceId, ensureDevicesLoaded } = useAudioDevices();
-  const { recording, status, setStatus, elapsed, recMime, analyser, start, stop, cutSegment } = useRecorder();
+  const { recording, status, setStatus, elapsed, recMime, analyser, start, stop, cutSegment, ensureAnalyser } = useRecorder();
   const { toast, showToast } = useToast();
 
   const sinceLastSendSecRef = useRef<number>(0);
   const silenceMsRef = useRef<number>(0);
   const silenceStateRef = useRef<ReturnType<typeof createSilenceState> | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
   const checkTimerRef = useRef<number | null>(null);
   const secondsTimerRef = useRef<number | null>(null);
   const sendingRef = useRef<boolean>(false);
@@ -27,6 +28,7 @@ export default function AudioRecorder() {
   const chunkIndexRef = useRef<number>(0);
 
   useEffect(() => { /* cleanup handled in useRecorder */ }, []);
+  useEffect(() => { analyserRef.current = analyser; }, [analyser]);
   // Local timers cleanup on unmount
   useEffect(() => {
     return () => {
@@ -52,6 +54,7 @@ export default function AudioRecorder() {
     chunkIndexRef.current = 0;
     try {
       await start({ deviceId, chunkMs: chunsizeCondition.chunkMs });
+      await ensureAnalyser();
       // Start timers for condition checks
       if (secondsTimerRef.current) window.clearInterval(secondsTimerRef.current);
       secondsTimerRef.current = window.setInterval(() => {
@@ -61,7 +64,7 @@ export default function AudioRecorder() {
       if (checkTimerRef.current) window.clearInterval(checkTimerRef.current);
       checkTimerRef.current = window.setInterval(() => {
         // Silence detection via external module
-        const a = analyser;
+        const a = analyserRef.current;
         if (a && silenceStateRef.current) {
           const { state } = stepSilence(a, silenceStateRef.current, {
             useAdaptiveVad: silenceConfig.useAdaptiveVad,
@@ -74,7 +77,7 @@ export default function AudioRecorder() {
           silenceStateRef.current = state;
           silenceMsRef.current = state.silenceMs;
         }
-        
+
         const since = sinceLastSendSecRef.current;
         const silentMs = silenceMsRef.current;
         if (!sendingRef.current) {

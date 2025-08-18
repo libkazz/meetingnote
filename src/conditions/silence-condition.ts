@@ -44,11 +44,17 @@ export function stepSilence(
   let noiseFloor = prev.noiseFloor;
   let voiceHoldMs = prev.voiceHoldMs;
   let silenceMs = prev.silenceMs;
+  // Debug vars for logging
+  let isVoice = false;
+  let alphaUsed: number | undefined;
+  let marginUsed: number | undefined;
+  let thresholdUsed: number | undefined;
+  const mode = useAdaptive ? "adaptive" : "absolute";
 
   if (useAdaptive) {
     const alpha = cfg.noiseFloorAlpha ?? 0.95; // when no voice
     const margin = cfg.voiceMarginRms ?? 0.015;
-    const isVoice = rms > (noiseFloor + margin);
+    isVoice = rms > (noiseFloor + margin);
     // Update noise floor: slower when voice present, faster when not
     const nextFloor = isVoice
       ? noiseFloor * 0.999 + rms * 0.001
@@ -56,10 +62,13 @@ export function stepSilence(
     noiseFloor = Math.max(0, Math.min(1, nextFloor));
     isSilent = !isVoice;
     if (isVoice) voiceHoldMs += dtMs; else voiceHoldMs = 0;
+    alphaUsed = alpha;
+    marginUsed = margin;
   } else {
     const th = cfg.silenceThresholdRms ?? 0.02;
     isSilent = rms < th;
     if (isSilent) voiceHoldMs = 0; else voiceHoldMs += dtMs;
+    thresholdUsed = th;
   }
 
   if (isSilent) {
@@ -74,6 +83,7 @@ export function stepSilence(
 
 // Default silence detection parameters (exported for app-wide use)
 export const silenceConfig = {
+  // Original, moderate settings
   useAdaptiveVad: true,
   noiseFloorAlpha: 0.9,
   voiceMarginRms: 0.03,
