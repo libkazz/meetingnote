@@ -2,14 +2,16 @@ import React from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
-vi.mock('../../src/lib/api/n8n-client', () => ({
+vi.mock('../../src/lib/api/transcribe-client', () => ({
   transcribeAudio: vi.fn(async (blob: Blob) => ({ text: `ok:${blob.type}`, raw: {} })),
+}))
+vi.mock('../../src/lib/api/n8n-common', () => ({
   diagnoseConnection: vi.fn(async () => ({ ok: true, status: 200, statusText: 'OK', headers: {}, cfg: { apiUrl: '/api/n8n', hasApiKey: false, timeoutMs: 60000, fieldName: 'audio', useProxy: true } })),
   getRuntimeConfig: vi.fn(() => ({ apiUrl: '/api/n8n', hasApiKey: false, timeoutMs: 60000, fieldName: 'audio', useProxy: true })),
 }))
 
 import AudioRecorder from '../../src/components/AudioRecorder'
-import { transcribeAudio } from '../../src/lib/api/n8n-client'
+import { transcribeAudio } from '../../src/lib/api/transcribe-client'
 
 describe('integration: AudioRecorder end-to-end', () => {
   it('records, sends blob to n8n-client, and renders transcript', async () => {
@@ -31,7 +33,7 @@ describe('integration: AudioRecorder end-to-end', () => {
   })
 
   it('shows an error toast when upload fails', async () => {
-    const mod = await import('../../src/lib/api/n8n-client')
+    const mod = await import('../../src/lib/api/transcribe-client')
     ;(mod.transcribeAudio as unknown as jest.Mock).mockRejectedValueOnce(new Error('boom'))
     render(<AudioRecorder />)
     fireEvent.click(await screen.findByRole('button', { name: /Start Recording/ }))
@@ -48,4 +50,3 @@ describe('integration: AudioRecorder end-to-end', () => {
     })
   })
 })
-

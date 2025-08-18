@@ -2,14 +2,12 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 
-vi.mock('../../src/lib/api/n8n-client', () => ({
+vi.mock('../../src/lib/api/transcribe-client', () => ({
   transcribeAudio: vi.fn(async () => ({ text: 'transcript', raw: {} })),
-  diagnoseConnection: vi.fn(async () => ({ ok: true })),
-  getRuntimeConfig: vi.fn(() => ({ apiUrl: '/api/n8n', hasApiKey: false, timeoutMs: 60000, fieldName: 'audio', useProxy: true })),
 }))
 
 import AudioRecorder from '../../src/components/AudioRecorder'
-import { transcribeAudio } from '../../src/lib/api/n8n-client'
+import { transcribeAudio } from '../../src/lib/api/transcribe-client'
 
 describe('AudioRecorder component', () => {
   it('toggles start/stop and shows result', async () => {
@@ -31,7 +29,7 @@ describe('AudioRecorder component', () => {
   })
 
   it('shows toast on upload failure', async () => {
-    const mod = await import('../../src/lib/api/n8n-client')
+    const mod = await import('../../src/lib/api/transcribe-client')
     ;(mod.transcribeAudio as unknown as jest.Mock).mockRejectedValueOnce(new Error('boom'))
     render(<AudioRecorder />)
     fireEvent.click(await screen.findByRole('button', { name: /Start Recording/ }))
@@ -39,4 +37,3 @@ describe('AudioRecorder component', () => {
     await screen.findByText(/Error: boom/)
   })
 })
-

@@ -14,7 +14,11 @@ read_env() {
   sed -n "s/^$1=//p" "$ENV_FILE" | tail -n1
 }
 
-URL="$(read_env VITE_N8N_API_URL)"
+# Prefer new variable; fallback to deprecated for compatibility
+URL="$(read_env VITE_N8N_TRANSCRIBE_URL)"
+if [[ -z "$URL" ]]; then
+  URL="$(read_env VITE_N8N_API_URL)"
+fi
 KEY="$(read_env VITE_N8N_API_KEY || true)"
 FIELD="$(read_env VITE_UPLOAD_FIELD_NAME || true)"
 [[ -n "${FIELD:-}" ]] || FIELD="audio"
@@ -29,7 +33,7 @@ if [[ ! -f "$FILE_PATH" ]]; then
   exit 2
 fi
 if [[ -z "${URL:-}" ]]; then
-  echo "[error] VITE_N8N_API_URL is not set in .env" >&2
+  echo "[error] VITE_N8N_TRANSCRIBE_URL is not set in .env" >&2
   exit 2
 fi
 
@@ -52,4 +56,3 @@ else
     "$URL"
 fi
 echo
-

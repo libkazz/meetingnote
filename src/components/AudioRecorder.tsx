@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useAudioDevices } from "../hooks/use-audio-devices";
 import { useRecorder } from "../hooks/use-recorder";
 import { useToast } from "../hooks/use-toast";
-import { transcribeAudio } from "../lib/api/n8n-client";
+import { transcribeAudio } from "../lib/api/transcribe-client";
 import { chunsizeCondition } from "../conditions/chunksize-condition";
 import { createSilenceState, stepSilence, silenceConfig } from "../conditions/silence-condition";
 import DeviceSelector from "./DeviceSelector";

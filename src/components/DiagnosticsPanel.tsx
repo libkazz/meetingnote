@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { diagnoseConnection, getRuntimeConfig } from "../lib/api/n8n-client";
-import type { DiagnoseResult } from "../lib/api/n8n-client";
+import { diagnoseConnection, getRuntimeConfig } from "../lib/api/n8n-common";
+import type { DiagnoseResult } from "../lib/api/n8n-common";
 
 export default function DiagnosticsPanel() {
   const [status, setStatus] = useState("");
@@ -24,4 +24,3 @@ export default function DiagnosticsPanel() {
     </details>
   );
 }
-

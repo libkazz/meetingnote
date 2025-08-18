@@ -21,7 +21,7 @@ Prerequisite: Node.js 18+. The package manager is described using `npm` examples
 - Language: TypeScript is recommended, 2-space indentation.
 - Formatting: Prettier, Static Analysis: ESLint (`npm run lint`/`npm run format`).
 - Naming: `camelCase` for variables/functions, `PascalCase` for React components, `kebab-case` for files.
-- Examples: `src/components/AudioRecorder.tsx`, `src/lib/api/n8n-client.ts`.
+- Examples: `src/components/AudioRecorder.tsx`, `src/lib/api/transcribe-client.ts`.
 
 ## Testing Guidelines
 - Framework: Assumes Jest/Vitest. Tests should mock external APIs, and recording I/O should be verified with minimal integration tests.
@@ -34,6 +34,6 @@ Prerequisite: Node.js 18+. The package manager is described using `npm` examples
 - Merge Conditions: CI green, lint/format pass, 1+ review.
 
 ## Security & Configuration
-- Environment Variables (example): `N8N_API_URL`, `N8N_API_KEY`. Update `.env.example`.
+- Environment Variables (example): `N8N_TRANSCRIBE_URL` (legacy: `N8N_API_URL`), `N8N_API_KEY`. Update `.env.example`.
 - Recording data should only be handled in memory/temporary storage; maintain the design of not persisting it. Do not log sensitive information.
 - Configure CORS and upload size/timeout appropriately.

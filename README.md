@@ -19,7 +19,7 @@ A minimal web app to record in-browser, transcribe with n8n, and display the res
 1) Prerequisite: Have Node.js 18+ installed, then install dependencies:
    - `npm install`
 2) Create a `.env` file (see example):
-   - `VITE_N8N_API_URL=https://<your-n8n>/webhook/<path>`
+   - `VITE_N8N_TRANSCRIBE_URL=https://<your-n8n>/webhook/<path>`
    - `VITE_N8N_API_KEY=<optional>` (only if required by your Webhook)
    - `VITE_USE_PROXY=false` (set to `true` to bypass CORS in development)
    - `VITE_REQUEST_TIMEOUT_MS=60000`
@@ -34,16 +34,17 @@ Note: Environment variables exposed to the frontend must be prefixed with `VITE_
 ```
 src/
   components/AudioRecorder.tsx   # Recording/submission UI
-  lib/api/n8n-client.ts          # n8n submission/diagnostics
+  lib/api/transcribe-client.ts   # Transcription submission
+  lib/api/n8n-common.ts          # Shared n8n helpers/diagnostics
   styles/global.css              # Theme/layout
 tests/                           # Vitest + Testing Library
 scripts/curl-n8n.sh              # Minimal validation with curl
 ```
 
 ## n8n Setup (Key Points)
-- Webhook: Method=POST, Path must match the frontend. Binary data ON, Property Name=`audio` (if changed, update `VITE_UPLOAD_FIELD_NAME` in `.env`).
+- Webhook: Method=POST, Path must match the frontend. Binary data ON, Property Name=`audio` (if changed, update `VITE_UPLOAD_FIELD_NAME` in `.env`). Use the Production URL in `VITE_N8N_TRANSCRIBE_URL`.
 - Response: Set to "When last node finishes," and at the end, return a `200 application/json` with `{ "text": "..." }` from a Response/Respond node.
-- Production: Activate the workflow and use the Production URL (`/webhook/...`).
+- Production: Activate the workflow and use the Production URL (`/webhook/...`). Put this in `VITE_N8N_TRANSCRIBE_URL`.
 
 ## Development & Testing
 - Lint/Type Check: `npm run lint` / `npm run typecheck`
@@ -67,6 +68,7 @@ scripts/curl-n8n.sh              # Minimal validation with curl
 
 ## Architecture Overview
 - Browser (Recording/UI) → n8n Webhook (audio via `multipart/form-data`) → Transcription Node → JSON response with `text`.
+- Frontend reads `VITE_N8N_TRANSCRIBE_URL` for the transcription endpoint (legacy: `VITE_N8N_API_URL`).
 - Only frontend environment variables with the `VITE_` prefix are exposed. As a rule, do not keep secrets in the frontend.
 
 ## Detailed n8n Setup (Steps)
