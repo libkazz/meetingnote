@@ -7,8 +7,9 @@ export type RecorderControls = {
   elapsed: number;
   recMime: string;
   analyser: AnalyserNode | null;
-  start: (opts?: { deviceId?: string }) => Promise<void>;
+  start: (opts?: { deviceId?: string; chunkMs?: number; ondata?: (chunk: Blob) => void }) => Promise<void>;
   stop: () => Promise<Blob>;
+  cutSegment?: () => Promise<Blob>;
 };
 
 export function useRecorder(): RecorderControls {
@@ -23,6 +24,7 @@ export function useRecorder(): RecorderControls {
   const chunksRef = useRef<BlobPart[]>([]);
   const timerRef = useRef<number | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const lastStartOptsRef = useRef<{ deviceId?: string; chunkMs?: number; ondata?: (chunk: Blob) => void } | undefined>(undefined);
 
   useEffect(() => {
     return () => {
@@ -34,7 +36,8 @@ export function useRecorder(): RecorderControls {
     };
   }, []);
 
-  async function start(opts?: { deviceId?: string }) {
+  async function start(opts?: { deviceId?: string; chunkMs?: number; ondata?: (chunk: Blob) => void }) {
+    lastStartOptsRef.current = opts;
     setStatus("Accessing microphone...");
     chunksRef.current = [];
     let stream: MediaStream;
@@ -81,7 +84,14 @@ export function useRecorder(): RecorderControls {
       }
     }
     rec.ondataavailable = (e) => {
-      if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
+      if (e.data && e.data.size > 0) {
+        chunksRef.current.push(e.data);
+        try {
+          opts?.ondata?.(e.data);
+        } catch {
+          // ignore user callback errors
+        }
+      }
     };
     rec.onerror = (ev: unknown) => {
       const err = (ev as { error?: Error } | undefined)?.error;
@@ -107,8 +117,13 @@ export function useRecorder(): RecorderControls {
     } catch {
       // Non-fatal
     }
-
-    rec.start();
+    // Start recording. If chunkMs provided, request periodic dataavailable events
+    try {
+      // @ts-expect-error - timeslice optional param may not be declared in some TS libs
+      rec.start(opts?.chunkMs);
+    } catch {
+      rec.start();
+    }
     setRecording(true);
     setStatus("Recording...");
     setElapsed(0);
@@ -137,5 +152,62 @@ export function useRecorder(): RecorderControls {
     });
   }
 
-  return { recording, status, setStatus, elapsed, recMime, analyser, start, stop };
+  async function cutSegment(): Promise<Blob> {
+    // Stop only the MediaRecorder to produce a complete file, keep stream/analyser alive
+    return new Promise<Blob>((resolve) => {
+      const rec = recRef.current;
+      if (!rec || rec.state === "inactive") {
+        resolve(new Blob([]));
+        return;
+      }
+      const handleStop = () => {
+        const type = recMime || "audio/webm";
+        const blob = new Blob(chunksRef.current, { type });
+        chunksRef.current = [];
+        // Immediately restart a fresh recorder session on existing stream
+        const stream = mediaRef.current;
+        try {
+          if (stream) {
+            const candidates = [
+              "audio/webm;codecs=opus",
+              "audio/webm",
+              "audio/ogg;codecs=opus",
+              "audio/mp4;codecs=aac",
+            ];
+            const supported = candidates.find((t) =>
+              typeof MediaRecorder !== "undefined" && (MediaRecorder as unknown as { isTypeSupported?: (t: string) => boolean }).isTypeSupported?.(t)
+            );
+            // Create new recorder
+            const newRec = supported ? new MediaRecorder(stream, { mimeType: supported }) : new MediaRecorder(stream);
+            setRecMime(newRec.mimeType || supported || "");
+            newRec.ondataavailable = (e) => {
+              if (e.data && e.data.size > 0) {
+                chunksRef.current.push(e.data);
+                try { lastStartOptsRef.current?.ondata?.(e.data); } catch { /* ignore */ }
+              }
+            };
+            newRec.onerror = (ev: unknown) => {
+              const err = (ev as { error?: Error } | undefined)?.error;
+              setStatus(err?.message || "Recorder error");
+            };
+            recRef.current = newRec;
+            try {
+              // @ts-expect-error
+              newRec.start(lastStartOptsRef.current?.chunkMs);
+            } catch {
+              newRec.start();
+            }
+          }
+        } catch {
+          // Non-fatal: if restart fails, overall recording may stop
+        }
+        resolve(blob);
+      };
+      rec.onstop = handleStop;
+      rec.stop();
+      // Do not stop tracks or audio context here
+    });
+  }
+
+  return { recording, status, setStatus, elapsed, recMime, analyser, start, stop, cutSegment };
 }

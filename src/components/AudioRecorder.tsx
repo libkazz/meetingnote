@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useAudioDevices } from "../hooks/use-audio-devices";
 import { useRecorder } from "../hooks/use-recorder";
 import { useToast } from "../hooks/use-toast";
 import { transcribeAudio } from "../lib/api/n8n-client";
+import { chunsizeCondition } from "../conditions/chunksize-condition";
+import { createSilenceState, stepSilence, silenceConfig } from "../conditions/silence-condition";
 import DeviceSelector from "./DeviceSelector";
 import WaveformCanvas from "./WaveformCanvas";
 import DiagnosticsPanel from "./DiagnosticsPanel";
@@ -10,34 +12,135 @@ import TranscriptActions from "./TranscriptActions";
 
 export default function AudioRecorder() {
   const [result, setResult] = useState<string>("");
+  const [active, setActive] = useState<boolean>(false);
   const { devices, deviceId, setDeviceId, ensureDevicesLoaded } = useAudioDevices();
-  const { recording, status, setStatus, elapsed, recMime, analyser, start, stop } = useRecorder();
+  const { recording, status, setStatus, elapsed, recMime, analyser, start, stop, cutSegment } = useRecorder();
   const { toast, showToast } = useToast();
 
+  const sinceLastSendSecRef = useRef<number>(0);
+  const silenceMsRef = useRef<number>(0);
+  const silenceStateRef = useRef<ReturnType<typeof createSilenceState> | null>(null);
+  const checkTimerRef = useRef<number | null>(null);
+  const secondsTimerRef = useRef<number | null>(null);
+  const sendingRef = useRef<boolean>(false);
+  const sessionIdRef = useRef<string>("");
+  const chunkIndexRef = useRef<number>(0);
+
   useEffect(() => { /* cleanup handled in useRecorder */ }, []);
+  // Local timers cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (checkTimerRef.current) window.clearInterval(checkTimerRef.current);
+      if (secondsTimerRef.current) window.clearInterval(secondsTimerRef.current);
+    };
+  }, []);
 
   async function onStart() {
     setResult("");
+    setActive(true);
+    sinceLastSendSecRef.current = 0;
+    silenceMsRef.current = 0;
+    silenceStateRef.current = createSilenceState({
+      useAdaptiveVad: silenceConfig.useAdaptiveVad,
+      noiseFloorAlpha: silenceConfig.noiseFloorAlpha,
+      voiceMarginRms: silenceConfig.voiceMarginRms,
+      noiseFloorInit: silenceConfig.noiseFloorInit,
+      silenceThresholdRms: silenceConfig.silenceThresholdRms,
+      voiceDebounceMs: silenceConfig.voiceDebounceMs,
+    });
+    sessionIdRef.current = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    chunkIndexRef.current = 0;
     try {
-      await start({ deviceId });
+      await start({ deviceId, chunkMs: chunsizeCondition.chunkMs });
+      // Start timers for condition checks
+      if (secondsTimerRef.current) window.clearInterval(secondsTimerRef.current);
+      secondsTimerRef.current = window.setInterval(() => {
+        sinceLastSendSecRef.current += 1;
+      }, 1000);
+
+      if (checkTimerRef.current) window.clearInterval(checkTimerRef.current);
+      checkTimerRef.current = window.setInterval(() => {
+        // Silence detection via external module
+        const a = analyser;
+        if (a && silenceStateRef.current) {
+          const { state } = stepSilence(a, silenceStateRef.current, {
+            useAdaptiveVad: silenceConfig.useAdaptiveVad,
+            noiseFloorAlpha: silenceConfig.noiseFloorAlpha,
+            voiceMarginRms: silenceConfig.voiceMarginRms,
+            noiseFloorInit: silenceConfig.noiseFloorInit,
+            silenceThresholdRms: silenceConfig.silenceThresholdRms,
+            voiceDebounceMs: silenceConfig.voiceDebounceMs,
+          }, silenceConfig.checkIntervalMs);
+          silenceStateRef.current = state;
+          silenceMsRef.current = state.silenceMs;
+        }
+        
+        const since = sinceLastSendSecRef.current;
+        const silentMs = silenceMsRef.current;
+        if (!sendingRef.current) {
+          const should = chunsizeCondition.shouldSend(since, silentMs);
+          if (should) void sendCurrentSegment();
+        }
+      }, silenceConfig.checkIntervalMs);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       showToast(msg);
+      setActive(false);
     }
   }
 
   async function onStop() {
+    // Stop timers
+    if (checkTimerRef.current) { window.clearInterval(checkTimerRef.current); checkTimerRef.current = null; }
+    if (secondsTimerRef.current) { window.clearInterval(secondsTimerRef.current); secondsTimerRef.current = null; }
     const blob = await stop();
-    setStatus("Sending to n8n...");
     try {
-      const out = await transcribeAudio(blob);
-      setResult(out.text);
+      await sendBlob(blob, "final");
       setStatus("Done");
+      setActive(false);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to send";
       setStatus(msg);
       showToast(`Error: ${msg}`);
+      setActive(false);
     }
+  }
+
+  async function sendCurrentSegment() {
+    if (sendingRef.current) return;
+    sendingRef.current = true;
+    setStatus("Sending to n8n...");
+    try {
+      const blob = await (cutSegment ? cutSegment() : Promise.resolve(new Blob()));
+      if (blob && blob.size > 0) {
+        const since = sinceLastSendSecRef.current;
+        const silentMs = silenceMsRef.current;
+        const reason = chunsizeCondition.reason?.(since, silentMs) || (since >= chunsizeCondition.maxSeconds ? "max-seconds" : "min-seconds-and-silence");
+        await sendBlob(blob, reason);
+      }
+      sinceLastSendSecRef.current = 0;
+      silenceMsRef.current = 0;
+      setStatus("Recording...");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to send";
+      setStatus(msg);
+      showToast(`Error: ${msg}`);
+    } finally {
+      sendingRef.current = false;
+    }
+  }
+
+  async function sendBlob(blob: Blob, reason: string) {
+    const out = await transcribeAudio(blob, {
+      fields: {
+        sessionId: sessionIdRef.current,
+        chunkIndex: ++chunkIndexRef.current,
+        reason,
+        elapsedSeconds: sinceLastSendSecRef.current,
+        mime: recMime || "audio/webm",
+      },
+    });
+    setResult((prev) => (prev ? `${prev}\n${out.text}` : out.text));
   }
 
   function pad(n: number): string { return n < 10 ? `0${n}` : String(n); }
@@ -98,17 +201,22 @@ export default function AudioRecorder() {
         />
       </div>
       <div className="row">
-        <button
-          className={recording ? "btn btn-danger" : "btn"}
-          onClick={recording ? onStop : onStart}
-        >
-          {recording ? "⏹ Stop and Send" : "🎙️ Start Recording"}
-        </button>
-        {recording && (
-          <span className="badge" aria-live="polite">
-            <span className="dot" aria-hidden />Recording {formatTime(elapsed)}
-          </span>
-        )}
+        {(() => { const isActive = active || recording || status.startsWith("Recording");
+          return (
+            <>
+              <button
+                className={isActive ? "btn btn-danger" : "btn"}
+                onClick={isActive ? onStop : onStart}
+              >
+                {isActive ? "⏹ Stop and Send" : "🎙️ Start Recording"}
+              </button>
+              {isActive && (
+                <span className="badge" aria-live="polite">
+                  <span className="dot" aria-hidden />Recording {formatTime(elapsed)}
+                </span>
+              )}
+            </>
+          ); })()}
       </div>
       <WaveformCanvas analyser={analyser} height={80} />
       <div className="status" aria-live="polite">{status} {recMime && `(format: ${recMime})`}</div>

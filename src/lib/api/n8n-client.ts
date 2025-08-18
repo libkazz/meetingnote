@@ -15,17 +15,41 @@ function getConfig(overrides?: { apiUrl?: string; apiKey?: string; timeoutMs?: n
   return { apiUrl, apiKey, timeoutMs };
 }
 
+let __fileSeq = 0; // unique file sequence per session
+
+function inferExtension(mime: string): string {
+  const t = (mime || "").toLowerCase();
+  if (t.includes("ogg")) return "ogg";
+  if (t.includes("webm")) return "webm";
+  if (t.includes("wav")) return "wav";
+  if (t.includes("mp4") || t.includes("m4a") || t.includes("aac")) return "m4a";
+  return "bin";
+}
+
 export async function transcribeAudio(
   fileOrBlob: Blob,
-  options?: { apiUrl?: string; apiKey?: string; signal?: AbortSignal; timeoutMs?: number }
+  options?: { apiUrl?: string; apiKey?: string; signal?: AbortSignal; timeoutMs?: number; fields?: Record<string, string | number | boolean> }
 ): Promise<TranscribeResult> {
   const { apiUrl, apiKey, timeoutMs } = getConfig(options);
   const form = new FormData();
   const fieldName = readEnv("UPLOAD_FIELD_NAME") || "audio";
   const file = fileOrBlob instanceof File
     ? fileOrBlob
-    : new File([fileOrBlob], "recording.webm", { type: (fileOrBlob as Blob).type || "audio/webm" });
+    : (() => {
+        const type = (fileOrBlob as Blob).type || "audio/webm";
+        const ext = inferExtension(type);
+        const name = `recording-${Date.now()}-${++__fileSeq}.${ext}`;
+        return new File([fileOrBlob], name, { type });
+      })();
   form.append(fieldName, file);
+  // Provide filename as separate field for workflows that rely on it
+  form.append("filename", file.name);
+  // Append extra fields if provided (stringify primitives)
+  if (options?.fields) {
+    for (const [k, v] of Object.entries(options.fields)) {
+      form.append(k, String(v));
+    }
+  }
 
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
