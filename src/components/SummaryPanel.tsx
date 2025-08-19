@@ -86,6 +86,15 @@ export default function SummaryPanel({ value, onChange }: Props) {
           {running ? "🧠 Summarizing..." : "🧠 Summarize"}
         </button>
         <div className="status" aria-live="polite">{status}</div>
+        <div style={{ marginLeft: "auto" }}>
+          <button
+            className="btn btn-secondary"
+            onClick={() => { setPrevious(result); showToast("Copied summary to previous"); }}
+            disabled={!result.trim() || running}
+          >
+            📎 Copy result to previous
+          </button>
+        </div>
       </div>
       <label className="hint" htmlFor="summaryResult" style={{ display: "grid" }}>
         Summary result
@@ -97,15 +106,7 @@ export default function SummaryPanel({ value, onChange }: Props) {
           style={{ width: "100%" }}
         />
       </label>
-      <div className="toolbar">
-        <button
-          className="btn btn-secondary"
-          onClick={() => { setPrevious(result); showToast("Copied summary to previous"); }}
-          disabled={!result.trim() || running}
-        >
-          📎 Copy result to previous
-        </button>
-      </div>
+      
       <div className="toaster" aria-live="polite">
         {toast && <div className="toast">{toast}</div>}
       </div>
