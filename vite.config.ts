@@ -7,6 +7,7 @@ export default defineConfig(({ mode }) => {
   const transcribeUrl = env.VITE_N8N_TRANSCRIBE_URL || "";
   const summaryUrl = env.VITE_N8N_SUMMARY_URL || "";
   const headers = env.VITE_N8N_API_KEY ? { Authorization: `Bearer ${env.VITE_N8N_API_KEY}` } : undefined;
+  const mergeUrl = env.VITE_N8N_MERGE_AUDIO_URL || "";
 
   const proxy: Record<string, unknown> | undefined = useProxy
     ? {
@@ -28,6 +29,17 @@ export default defineConfig(({ mode }) => {
                 changeOrigin: true,
                 secure: false,
                 rewrite: (p: string) => p.replace(/^\/api\/n8n\/summary/, ""),
+                headers,
+              },
+            }
+          : {}),
+        ...(mergeUrl
+          ? {
+              "/api/n8n/merge-audio": {
+                target: mergeUrl,
+                changeOrigin: true,
+                secure: false,
+                rewrite: (p: string) => p.replace(/^\/api\/n8n\/merge-audio/, ""),
                 headers,
               },
             }

@@ -9,6 +9,7 @@ import DeviceSelector from "./DeviceSelector";
 import WaveformCanvas from "./WaveformCanvas";
 import DiagnosticsPanel from "./DiagnosticsPanel";
 import TranscriptActions from "./TranscriptActions";
+import { mergeAudio } from "../lib/api/merge-client";
 
 export default function AudioRecorder() {
   const [result, setResult] = useState<string>("");
@@ -27,6 +28,7 @@ export default function AudioRecorder() {
   const sendingRef = useRef<boolean>(false);
   const sessionIdRef = useRef<string>("");
   const chunkIndexRef = useRef<number>(0);
+  const [mergedUrl, setMergedUrl] = useState<string>("");
 
   useEffect(() => { /* cleanup handled in useRecorder */ }, []);
   useEffect(() => { analyserRef.current = analyser; }, [analyser]);
@@ -40,6 +42,7 @@ export default function AudioRecorder() {
 
   async function onStart() {
     setResult("");
+    setMergedUrl("");
     setActive(true);
     sinceLastSendSecRef.current = 0;
     silenceMsRef.current = 0;
@@ -103,7 +106,15 @@ export default function AudioRecorder() {
     const blob = await stop();
     try {
       await sendBlob(blob, "final");
-      setStatus("Done");
+      // After sending final segment, trigger merge-audio
+      setStatus("Merging audio...");
+      const merge = await mergeAudio(sessionIdRef.current);
+      if (merge.audio_link_url) {
+        setMergedUrl(merge.audio_link_url);
+        setStatus("Done");
+      } else {
+        setStatus("Merged, but no link returned");
+      }
       setActive(false);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to send";
@@ -241,6 +252,13 @@ export default function AudioRecorder() {
       <div className="status" aria-live="polite">{status} {recMime && `(format: ${recMime})`}</div>
       <DiagnosticsPanel />
       <TranscriptActions text={result} onCopy={copyText} onDownload={downloadText} />
+      {mergedUrl && (
+        <div className="toolbar">
+          <a className="btn btn-secondary" href={mergedUrl} download target="_blank" rel="noreferrer noopener">
+            🔗 Download merged audio
+          </a>
+        </div>
+      )}
       <div className="toaster" aria-live="polite">
         {toast && <div className="toast">{toast}</div>}
       </div>

@@ -5,21 +5,27 @@ import React from 'react'
 vi.mock('../../src/lib/api/transcribe-client', () => ({
   transcribeAudio: vi.fn(async () => ({ text: 'transcript', raw: {} })),
 }))
+vi.mock('../../src/lib/api/merge-client', () => ({
+  mergeAudio: vi.fn(async () => ({ audio_link_url: 'https://example.com/merged.wav', raw: {} })),
+}))
 
 import AudioRecorder from '../../src/components/AudioRecorder'
 import { transcribeAudio } from '../../src/lib/api/transcribe-client'
+import { mergeAudio } from '../../src/lib/api/merge-client'
 
 describe('AudioRecorder component', () => {
   it('toggles start/stop and shows result', async () => {
     render(<AudioRecorder />)
     const btn = await screen.findByRole('button', { name: /Start Recording/ })
     fireEvent.click(btn)
-    expect(await screen.findByText(/Recording/)).toBeInTheDocument()
+    expect(await screen.findByText(/Recording\.\.\./)).toBeInTheDocument()
     fireEvent.click(await screen.findByRole('button', { name: /Stop and Send/ }))
     await waitFor(() => expect(transcribeAudio).toHaveBeenCalled())
+    await waitFor(() => expect(mergeAudio).toHaveBeenCalled())
     expect(await screen.findByText('transcript')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Copy/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Download/ })).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: /Download merged audio/ })).toHaveAttribute('href', 'https://example.com/merged.wav')
   })
 
   it('renders waveform canvas element', async () => {
