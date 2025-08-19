@@ -30,6 +30,7 @@ export default function AudioRecorder({ onTranscriptChange, onReady }: Props) {
   const chunkIndexRef = useRef<number>(0);
   const [mergedUrl, setMergedUrl] = useState<string>("");
   const [merging, setMerging] = useState<boolean>(false);
+  const [showWave, setShowWave] = useState<boolean>(false);
 
   useEffect(() => { /* cleanup handled in useRecorder */ }, []);
   useEffect(() => { analyserRef.current = analyser; }, [analyser]);
@@ -233,7 +234,16 @@ export default function AudioRecorder({ onTranscriptChange, onReady }: Props) {
             </>
           );
         })()}
-        <div style={{ marginLeft: "auto" }}>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+          <label className="hint" htmlFor="toggleWave" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <input
+              id="toggleWave"
+              type="checkbox"
+              checked={showWave}
+              onChange={(e) => setShowWave(e.target.checked)}
+            />
+            show wave
+          </label>
           <DeviceSelector
             devices={devices}
             value={deviceId}
@@ -243,7 +253,7 @@ export default function AudioRecorder({ onTranscriptChange, onReady }: Props) {
           />
         </div>
       </div>
-      <WaveformCanvas analyser={analyser} height={80} />
+      {showWave && <WaveformCanvas analyser={analyser} height={80} />}
       <div className="status" aria-live="polite">{status} {recMime && `(format: ${recMime})`}</div>
       {/* Advanced controls moved below card */}
       {mergedUrl && (

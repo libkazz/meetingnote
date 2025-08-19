@@ -25,10 +25,12 @@ describe('AudioRecorder component', () => {
     expect(await screen.findByRole('link', { name: /Download merged audio/ })).toHaveAttribute('href', 'https://example.com/merged.wav')
   })
 
-  it('renders waveform canvas element', async () => {
+  it('shows waveform only when toggled on', async () => {
     render(<AudioRecorder />)
-    const canvas = document.querySelector('canvas')
-    expect(canvas).toBeInTheDocument()
+    expect(document.querySelector('canvas')).not.toBeInTheDocument()
+    const toggle = screen.getByLabelText(/show wave/i)
+    fireEvent.click(toggle)
+    expect(document.querySelector('canvas')).toBeInTheDocument()
   })
 
   // Merge button moved to App advanced section; covered by integration elsewhere
