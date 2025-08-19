@@ -172,3 +172,24 @@ export async function saveResultRevision(meetingId: string, content: string, max
   }
 }
 
+export async function listRevisions(meetingId: string): Promise<Revision[]> {
+  // Return newest-first list
+  try {
+    if (hasIndexedDB()) {
+      const doc = await idbGetRevisionDoc(meetingId);
+      const items = doc?.items || [];
+      return [...items].sort((a, b) => b.rev - a.rev);
+    }
+  } catch {
+    // fallthrough
+  }
+  try {
+    const raw = localStorage.getItem(LS_REV_PREFIX + meetingId);
+    if (!raw) return [];
+    const doc = JSON.parse(raw) as RevisionDoc;
+    const items = doc?.items || [];
+    return [...items].sort((a, b) => b.rev - a.rev);
+  } catch {
+    return [];
+  }
+}

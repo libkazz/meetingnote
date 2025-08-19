@@ -13,6 +13,7 @@ export default function SummaryPanel({ value, onChange, meetingId }: Props) {
   const { toast, showToast } = useToast();
   const [expanded, setExpanded] = useState(false);
   const saveTimerRef = React.useRef<number | null>(null);
+  const [revisions, setRevisions] = useState<import("../lib/storage/persist").Revision[]>([]);
 
   // Sync internal state with controlled value if provided
   useEffect(() => {
@@ -36,6 +37,17 @@ export default function SummaryPanel({ value, onChange, meetingId }: Props) {
     return () => { cancelled = true; };
   }, [meetingId]);
 
+  const refreshRevisions = React.useCallback(async () => {
+    try {
+      if (!meetingId) return;
+      const { listRevisions } = await import("../lib/storage/persist");
+      const list = await listRevisions(meetingId);
+      setRevisions(list);
+    } catch {
+      // ignore
+    }
+  }, [meetingId]);
+
   // Auto-save summary result (debounced 600ms)
   useEffect(() => {
     if (!meetingId) return;
@@ -44,6 +56,7 @@ export default function SummaryPanel({ value, onChange, meetingId }: Props) {
       try {
         const { saveResultRevision } = await import("../lib/storage/persist");
         await saveResultRevision(meetingId, result);
+        await refreshRevisions();
       } catch {
         // ignore
       }
@@ -51,7 +64,50 @@ export default function SummaryPanel({ value, onChange, meetingId }: Props) {
     return () => {
       if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     };
-  }, [result, meetingId]);
+  }, [result, meetingId, refreshRevisions]);
+
+  // Load initial revisions when meetingId changes
+  useEffect(() => {
+    let cancelled = false;
+    async function loadList() {
+      try {
+        if (!meetingId) return;
+        await refreshRevisions();
+        if (cancelled) return;
+      } catch {
+        // ignore
+      }
+    }
+    loadList();
+    return () => { cancelled = true; };
+  }, [meetingId, refreshRevisions]);
+
+  const currentIdx = revisions.findIndex(r => r.content === result);
+  const canUndo = revisions.length > 0 && (currentIdx === -1 ? revisions.length > 1 : currentIdx < revisions.length - 1);
+
+  async function undo() {
+    if (!meetingId) return;
+    if (!revisions.length) return;
+    let idx = currentIdx;
+    // If current content isn't saved yet, save snapshot first
+    if (idx === -1) {
+      try {
+        const { saveResultRevision } = await import("../lib/storage/persist");
+        await saveResultRevision(meetingId, result);
+        await refreshRevisions();
+        idx = 0; // saved as latest
+      } catch {
+        // ignore
+      }
+    }
+    const target = Math.min(revisions.length - 1, Math.max(0, idx + 1));
+    if (target !== idx) {
+      const rev = revisions[target];
+      if (rev) setResult(rev.content);
+    }
+  }
+
+  // Redo removed by requirement
 
   async function onSummarize() {
     if (!target.trim()) return;
@@ -131,16 +187,28 @@ export default function SummaryPanel({ value, onChange, meetingId }: Props) {
         </div>
       </div>
       <label className="hint" htmlFor="summaryResult" style={{ display: "grid" }}>
-        <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
           <span>Summary result</span>
-          <a
-            href="#"
-            onClick={(e) => { e.preventDefault(); setExpanded(true); }}
-            className="hint"
-            aria-label="Expand summary result"
-          >
-            Expand
-          </a>
+          <div className="row" style={{ marginLeft: "auto", gap: 10, alignItems: "baseline" }}>
+            <a
+              href="#"
+              onClick={(e) => { e.preventDefault(); undo(); }}
+              className="hint"
+              aria-label="Undo"
+              title="Undo"
+              style={{ pointerEvents: canUndo ? 'auto' : 'none', opacity: canUndo ? 1 : 0.4 }}
+            >
+              ↶
+            </a>
+            <a
+              href="#"
+              onClick={(e) => { e.preventDefault(); setExpanded(true); }}
+              className="hint"
+              aria-label="Expand summary result"
+            >
+              Expand
+            </a>
+          </div>
         </div>
         <textarea
           id="summaryResult"
@@ -168,9 +236,19 @@ export default function SummaryPanel({ value, onChange, meetingId }: Props) {
             <span className="brand">Meeting note</span>
             <a
               href="#"
+              onClick={(e) => { e.preventDefault(); undo(); }}
+              className="hint"
+              aria-label="Undo"
+              title="Undo"
+              style={{ marginLeft: 'auto', marginRight: 10, pointerEvents: canUndo ? 'auto' : 'none', opacity: canUndo ? 1 : 0.4 }}
+            >
+              ↶
+            </a>
+            <a
+              href="#"
               onClick={(e) => { e.preventDefault(); setExpanded(false); }}
               className="hint"
-              style={{ marginLeft: "auto" }}
+              style={{ }}
               aria-label="Shrink summary result"
             >
               Shrink
