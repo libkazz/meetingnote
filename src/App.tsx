@@ -6,7 +6,8 @@ import DiagnosticsPanel from "./components/DiagnosticsPanel";
 export default function App() {
   const [summaryText, setSummaryText] = useState("");
   const [advMerging, setAdvMerging] = useState(false);
-  const mergeApiRef = React.useRef<{ mergeNow: () => Promise<void> } | null>(null);
+  const mergeApiRef = React.useRef<{ mergeNow: () => Promise<void>; meetingId: string } | null>(null);
+  const [meetingId, setMeetingId] = useState<string>("");
   return (
     <div className="container">
       <header className="header">
@@ -16,7 +17,7 @@ export default function App() {
       <section className="card stack">
         <AudioRecorder
           onTranscriptChange={setSummaryText}
-          onReady={(api) => { mergeApiRef.current = api; }}
+          onReady={(api) => { mergeApiRef.current = api; setMeetingId(api.meetingId); }}
         />
         <SummaryPanel value={summaryText} onChange={setSummaryText} />
       </section>
@@ -24,6 +25,9 @@ export default function App() {
       <details>
         <summary className="hint">Advanced</summary>
         <div className="stack" style={{ marginTop: 12 }}>
+          <div className="row">
+            <div className="hint">Meeting ID: {meetingId || '—'}</div>
+          </div>
           <div className="toolbar">
             <button
               className="btn btn-secondary"
@@ -37,7 +41,7 @@ export default function App() {
               {advMerging ? "🔗 Merging..." : "🔗 Merge Audio Now"}
             </button>
           </div>
-          <DiagnosticsPanel />
+          <DiagnosticsPanel bare />
         </div>
       </details>
     </div>

@@ -8,7 +8,7 @@ import { createSilenceState, stepSilence, silenceConfig } from "../conditions/si
 import DeviceSelector from "./DeviceSelector";
 import WaveformCanvas from "./WaveformCanvas";
 import { mergeAudio } from "../lib/api/merge-client";
-type Props = { onTranscriptChange?: (text: string) => void; onReady?: (api: { mergeNow: () => Promise<void> }) => void };
+type Props = { onTranscriptChange?: (text: string) => void; onReady?: (api: { mergeNow: () => Promise<void>; meetingId: string }) => void };
 
 export default function AudioRecorder({ onTranscriptChange, onReady }: Props) {
   const [active, setActive] = useState<boolean>(false);
@@ -190,7 +190,7 @@ export default function AudioRecorder({ onTranscriptChange, onReady }: Props) {
   }, [merging, showToast, setStatus, setMergedUrl]);
 
   useEffect(() => {
-    onReady?.({ mergeNow });
+    onReady?.({ mergeNow, meetingId: meetingIdRef.current });
   }, [onReady, mergeNow]);
 
   function pad(n: number): string { return n < 10 ? `0${n}` : String(n); }
@@ -206,9 +206,7 @@ export default function AudioRecorder({ onTranscriptChange, onReady }: Props) {
 
   return (
     <div className="stack">
-      <div className="row" style={{ justifyContent: "space-between" }}>
-        <div className="hint">Meeting ID: {meetingIdRef.current}</div>
-      </div>
+      {/* Meeting ID moved to Advanced section in App */}
       <div className="row" style={{ alignItems: "center" }}>
         {(() => {
           const isActive = active || recording || status.startsWith("Recording");
