@@ -53,7 +53,7 @@ export default function SummaryPanel({ value, onChange }: Props) {
   }
 
   return (
-    <section className="card stack">
+    <div className="stack">
       <div className="row">
         <div className="brand">Summary</div>
       </div>
@@ -108,6 +108,6 @@ export default function SummaryPanel({ value, onChange }: Props) {
       <div className="toaster" aria-live="polite">
         {toast && <div className="toast">{toast}</div>}
       </div>
-    </section>
+    </div>
   );
 }

@@ -12,8 +12,8 @@ export default function App() {
       <section className="card stack">
         <p className="hint">Record in the browser, send to n8n for transcription.</p>
         <AudioRecorder onTranscriptChange={setSummaryText} />
+        <SummaryPanel value={summaryText} onChange={setSummaryText} />
       </section>
-      <SummaryPanel value={summaryText} onChange={setSummaryText} />
     </div>
   );
 }
