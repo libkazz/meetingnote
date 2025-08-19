@@ -21,7 +21,7 @@ export default function App() {
           onTranscriptChange={setSummaryText}
           onReady={(api) => { mergeApiRef.current = api; setMeetingId(api.meetingId); }}
         />
-        <SummaryPanel value={summaryText} onChange={setSummaryText} />
+        <SummaryPanel value={summaryText} onChange={setSummaryText} meetingId={meetingId} />
       </section>
       <hr />
       <details>

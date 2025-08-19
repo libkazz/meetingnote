@@ -2,9 +2,9 @@ import React, { useEffect, useState } from "react";
 import { summarizeText } from "../lib/api/summary-client";
 import { useToast } from "../hooks/use-toast";
 
-type Props = { value?: string; onChange?: (v: string) => void };
+type Props = { value?: string; onChange?: (v: string) => void; meetingId?: string };
 
-export default function SummaryPanel({ value, onChange }: Props) {
+export default function SummaryPanel({ value, onChange, meetingId }: Props) {
   const [target, setTarget] = useState("");
   const [previous, setPrevious] = useState("");
   const [result, setResult] = useState("");
@@ -12,11 +12,46 @@ export default function SummaryPanel({ value, onChange }: Props) {
   const [running, setRunning] = useState(false);
   const { toast, showToast } = useToast();
   const [expanded, setExpanded] = useState(false);
+  const saveTimerRef = React.useRef<number | null>(null);
 
   // Sync internal state with controlled value if provided
   useEffect(() => {
     if (typeof value === "string") setTarget(value);
   }, [value]);
+
+  // Load persisted summary result when meetingId changes
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        if (!meetingId) return;
+        const { loadLatestResult } = await import("../lib/storage/persist");
+        const latest = await loadLatestResult(meetingId);
+        if (!cancelled) setResult(latest);
+      } catch {
+        // ignore
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [meetingId]);
+
+  // Auto-save summary result (debounced 600ms)
+  useEffect(() => {
+    if (!meetingId) return;
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = window.setTimeout(async () => {
+      try {
+        const { saveResultRevision } = await import("../lib/storage/persist");
+        await saveResultRevision(meetingId, result);
+      } catch {
+        // ignore
+      }
+    }, 600);
+    return () => {
+      if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    };
+  }, [result, meetingId]);
 
   async function onSummarize() {
     if (!target.trim()) return;
