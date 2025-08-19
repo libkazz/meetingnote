@@ -30,6 +30,7 @@ export default function AudioRecorder() {
   const meetingIdRef = useRef<string>(`${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
   const chunkIndexRef = useRef<number>(0);
   const [mergedUrl, setMergedUrl] = useState<string>("");
+  const [merging, setMerging] = useState<boolean>(false);
 
   useEffect(() => { /* cleanup handled in useRecorder */ }, []);
   useEffect(() => { analyserRef.current = analyser; }, [analyser]);
@@ -164,6 +165,27 @@ export default function AudioRecorder() {
     setResult((prev) => (prev ? `${prev}\n${out.text}` : out.text));
   }
 
+  async function mergeNow() {
+    if (merging) return;
+    try {
+      setMerging(true);
+      setStatus("Merging audio...");
+      const merge = await mergeAudio(meetingIdRef.current);
+      if (merge.audio_link_url) {
+        setMergedUrl(merge.audio_link_url);
+        setStatus("Done");
+      } else {
+        setStatus("Merged, but no link returned");
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setStatus(msg);
+      showToast(`Error: ${msg}`);
+    } finally {
+      setMerging(false);
+    }
+  }
+
   function pad(n: number): string { return n < 10 ? `0${n}` : String(n); }
   function formatTime(sec: number): string {
     const m = Math.floor(sec / 60);
@@ -255,6 +277,15 @@ export default function AudioRecorder() {
       <div className="status" aria-live="polite">{status} {recMime && `(format: ${recMime})`}</div>
       <DiagnosticsPanel />
       <TranscriptActions text={result} onCopy={copyText} onDownload={downloadText} />
+      <div className="toolbar">
+        <button
+          className="btn btn-secondary"
+          onClick={mergeNow}
+          disabled={recording || stopping || merging}
+        >
+          {merging ? "🔗 Merging..." : "🔗 Merge Audio Now"}
+        </button>
+      </div>
       {mergedUrl && (
         <div className="toolbar">
           <a className="btn btn-secondary" href={mergedUrl} download target="_blank" rel="noreferrer noopener">

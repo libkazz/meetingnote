@@ -35,6 +35,13 @@ describe('AudioRecorder component', () => {
     expect(canvas).toBeInTheDocument()
   })
 
+  it('merges when clicking explicit button', async () => {
+    render(<AudioRecorder />)
+    const btn = await screen.findByRole('button', { name: /Merge Audio Now/ })
+    fireEvent.click(btn)
+    await waitFor(() => expect(mergeAudio).toHaveBeenCalled())
+  })
+
   it('shows toast on upload failure', async () => {
     const mod = await import('../../src/lib/api/transcribe-client')
     ;(mod.transcribeAudio as unknown as jest.Mock).mockRejectedValueOnce(new Error('boom'))
