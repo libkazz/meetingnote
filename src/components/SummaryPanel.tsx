@@ -130,7 +130,7 @@ export default function SummaryPanel({ value, onChange }: Props) {
           aria-modal="true"
         >
           <div className="row" style={{ padding: 12, background: "var(--panel)", borderBottom: "1px solid rgba(148,163,184,0.15)" }}>
-            <span className="brand">Summary result</span>
+            <span className="brand">Meeting note</span>
             <a
               href="#"
               onClick={(e) => { e.preventDefault(); setExpanded(false); }}
