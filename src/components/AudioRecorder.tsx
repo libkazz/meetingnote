@@ -13,6 +13,7 @@ import TranscriptActions from "./TranscriptActions";
 export default function AudioRecorder() {
   const [result, setResult] = useState<string>("");
   const [active, setActive] = useState<boolean>(false);
+  const [stopping, setStopping] = useState<boolean>(false);
   const { devices, deviceId, setDeviceId, ensureDevicesLoaded } = useAudioDevices();
   const { recording, status, setStatus, elapsed, recMime, analyser, start, stop, cutSegment, ensureAnalyser } = useRecorder();
   const { toast, showToast } = useToast();
@@ -97,6 +98,7 @@ export default function AudioRecorder() {
     if (checkTimerRef.current) { window.clearInterval(checkTimerRef.current); checkTimerRef.current = null; }
     if (secondsTimerRef.current) { window.clearInterval(secondsTimerRef.current); secondsTimerRef.current = null; }
     // Immediately reflect sending state in UI
+    setStopping(true);
     setStatus("Sending final segment...");
     const blob = await stop();
     try {
@@ -108,6 +110,9 @@ export default function AudioRecorder() {
       setStatus(msg);
       showToast(`Error: ${msg}`);
       setActive(false);
+    }
+    finally {
+      setStopping(false);
     }
   }
 
@@ -208,21 +213,24 @@ export default function AudioRecorder() {
       <div className="row">
         {(() => {
           const isActive = active || recording || status.startsWith("Recording");
-          const showRecordingBadge = status.startsWith("Recording");
+          const isBackgroundSending = recording && status.startsWith("Sending");
+          const disableStopForFinal = stopping || (!recording && status.startsWith("Sending"));
+          const showBadge = !stopping && (recording || (active && status.startsWith("Sending")));
+          const badgeLabel = isBackgroundSending ? "Sending" : "Recording";
           return (
             <>
               <button
                 className={isActive ? "btn btn-danger" : "btn"}
                 onClick={isActive ? onStop : onStart}
-                disabled={isActive && status.startsWith("Sending")}
+                disabled={disableStopForFinal}
               >
                 {isActive
-                  ? (status.startsWith("Sending") ? "⏳ Sending..." : "⏹ Stop and Send")
+                  ? (disableStopForFinal ? "⏳ Sending..." : "⏹ Stop and Send")
                   : "🎙️ Start Recording"}
               </button>
-              {showRecordingBadge && (
+              {showBadge && (
                 <span className="badge" aria-live="polite">
-                  <span className="dot" aria-hidden />Recording {formatTime(elapsed)}
+                  <span className="dot" aria-hidden />{badgeLabel} {formatTime(elapsed)}
                 </span>
               )}
             </>
