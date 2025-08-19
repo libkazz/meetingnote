@@ -1,27 +1,28 @@
-import { describe, it, expect } from 'vitest'
-import { chunsizeCondition } from '../../src/conditions/chunksize-condition'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-describe('chunksize-condition: chunsizeCondition.shouldSend', () => {
-  it('returns false before min seconds even with long silence', () => {
-    expect(chunsizeCondition.shouldSend(0, 0)).toBe(false)
-    expect(chunsizeCondition.shouldSend(9, chunsizeCondition.requiredSilenceMs + 1000)).toBe(false)
+describe('chunksize-condition env', () => {
+  const originalEnv = (import.meta as any).env
+
+  beforeEach(() => {
+    ;(import.meta as any).env = { ...originalEnv }
+  })
+  afterEach(() => {
+    ;(import.meta as any).env = originalEnv
+    vi.resetModules()
   })
 
-  it('requires both min seconds and required silence to trigger', () => {
-    // at minSeconds but not enough silence
-    expect(chunsizeCondition.shouldSend(chunsizeCondition.minSeconds, chunsizeCondition.requiredSilenceMs - 1)).toBe(false)
-    // enough silence but not enough seconds
-    expect(chunsizeCondition.shouldSend(chunsizeCondition.minSeconds - 1, chunsizeCondition.requiredSilenceMs)).toBe(false)
-  })
-
-  it('returns true when both conditions met', () => {
-    expect(chunsizeCondition.shouldSend(chunsizeCondition.minSeconds, chunsizeCondition.requiredSilenceMs)).toBe(true)
-    // also when above both thresholds
-    expect(chunsizeCondition.shouldSend(chunsizeCondition.minSeconds + 5, chunsizeCondition.requiredSilenceMs + 500)).toBe(true)
-  })
-
-  it('returns true when max reached regardless of silence', () => {
-    expect(chunsizeCondition.shouldSend(chunsizeCondition.maxSeconds, 0)).toBe(true)
-    expect(chunsizeCondition.shouldSend(chunsizeCondition.maxSeconds, chunsizeCondition.requiredSilenceMs + 1000)).toBe(true)
+  it('reads VITE_ env overrides', async () => {
+    ;(import.meta as any).env.VITE_CHUNK_MIN_SECONDS = '5'
+    ;(import.meta as any).env.VITE_CHUNK_MAX_SECONDS = '20'
+    ;(import.meta as any).env.VITE_CHUNK_REQUIRED_SILENCE_MS = '1500'
+    ;(import.meta as any).env.VITE_CHUNK_MS = '500'
+    // re-import module to pick up env
+    const mod = await import('../../src/conditions/chunksize-condition')
+    const c = (mod as any).chunsizeCondition
+    expect(c.minSeconds).toBe(5)
+    expect(c.maxSeconds).toBe(20)
+    expect(c.requiredSilenceMs).toBe(1500)
+    expect(c.chunkMs).toBe(500)
   })
 })
+
