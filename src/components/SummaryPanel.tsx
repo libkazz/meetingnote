@@ -11,6 +11,7 @@ export default function SummaryPanel({ value, onChange }: Props) {
   const [status, setStatus] = useState("");
   const [running, setRunning] = useState(false);
   const { toast, showToast } = useToast();
+  const [expanded, setExpanded] = useState(false);
 
   // Sync internal state with controlled value if provided
   useEffect(() => {
@@ -95,7 +96,17 @@ export default function SummaryPanel({ value, onChange }: Props) {
         </div>
       </div>
       <label className="hint" htmlFor="summaryResult" style={{ display: "grid" }}>
-        Summary result
+        <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
+          <span>Summary result</span>
+          <a
+            href="#"
+            onClick={(e) => { e.preventDefault(); setExpanded(true); }}
+            className="hint"
+            aria-label="Expand summary result"
+          >
+            Expand
+          </a>
+        </div>
         <textarea
           id="summaryResult"
           value={result}
@@ -104,6 +115,42 @@ export default function SummaryPanel({ value, onChange }: Props) {
           style={{ width: "100%" }}
         />
       </label>
+      {expanded && (
+        <div
+          data-testid="summary-overlay"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.6)",
+            zIndex: 1000,
+            display: "grid",
+            gridTemplateRows: "auto 1fr",
+          }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="row" style={{ padding: 12, background: "var(--panel)", borderBottom: "1px solid rgba(148,163,184,0.15)" }}>
+            <span className="brand">Summary result</span>
+            <a
+              href="#"
+              onClick={(e) => { e.preventDefault(); setExpanded(false); }}
+              className="hint"
+              style={{ marginLeft: "auto" }}
+              aria-label="Shrink summary result"
+            >
+              Shrink
+            </a>
+          </div>
+          <div style={{ padding: 12, background: "var(--panel-muted)" }}>
+            <textarea
+              id="summaryResultExpanded"
+              value={result}
+              onChange={(e) => setResult(e.target.value)}
+              style={{ width: "100%", height: "calc(100vh - 80px)" }}
+            />
+          </div>
+        </div>
+      )}
       
       <div className="toaster" aria-live="polite">
         {toast && <div className="toast">{toast}</div>}

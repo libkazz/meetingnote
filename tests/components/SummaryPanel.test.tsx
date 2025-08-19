@@ -51,4 +51,18 @@ describe('SummaryPanel', () => {
     const prevTa = screen.getByLabelText(/Previous content/i) as HTMLTextAreaElement
     expect(prevTa.value).toBe(resultVal)
   })
+
+  it('expands summary result to fullscreen and shrinks back', async () => {
+    render(<SummaryPanel />)
+    // Prepare some result text first
+    const taTarget = screen.getByLabelText(/Text to summarize/i)
+    fireEvent.change(taTarget, { target: { value: 'hello' } })
+    fireEvent.click(screen.getByRole('button', { name: /Summarize/i }))
+    // Click Expand
+    fireEvent.click(screen.getByRole('link', { name: /Expand summary result/i }))
+    expect(await screen.findByTestId('summary-overlay')).toBeInTheDocument()
+    // Shrink back
+    fireEvent.click(screen.getByRole('link', { name: /Shrink summary result/i }))
+    await waitFor(() => expect(screen.queryByTestId('summary-overlay')).not.toBeInTheDocument())
+  })
 })
