@@ -3,7 +3,10 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 vi.mock('../../src/lib/api/summary-client', () => ({
-  summarizeText: vi.fn(async (text: string) => ({ text: `summary:${text}`, raw: {} })),
+  summarizeText: vi.fn(async (text: string) => ({
+    text: `ignored:${text}`,
+    raw: { message: { content: `summary:${text}` } },
+  })),
 }))
 
 import SummaryPanel from '../../src/components/SummaryPanel'
@@ -27,5 +30,14 @@ describe('SummaryPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /Summarize/ }))
     await screen.findByText(/Error: boom/)
   })
-})
 
+  it('renders escaped newlines as line breaks', async () => {
+    const mod = await import('../../src/lib/api/summary-client')
+    ;(mod.summarizeText as unknown as jest.Mock).mockResolvedValueOnce({ text: 'ignored', raw: { message: { content: 'line1\\nline2' } } })
+    render(<SummaryPanel />)
+    fireEvent.change(screen.getByLabelText(/Text to summarize/i), { target: { value: 'x' } })
+    fireEvent.click(screen.getByRole('button', { name: /Summarize/ }))
+    const ta = await screen.findByLabelText(/Summary result/i)
+    expect((ta as HTMLTextAreaElement).value).toBe('line1\nline2')
+  })
+})

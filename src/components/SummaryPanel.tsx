@@ -16,7 +16,25 @@ export default function SummaryPanel() {
     setStatus("Summarizing...");
     try {
       const out = await summarizeText(target, { fields: { context: previous } });
-      setResult(out.text);
+      const msgContent = (() => {
+        const raw = out.raw as unknown;
+        if (raw && typeof raw === "object" && "message" in (raw as Record<string, unknown>)) {
+          const m = (raw as { message?: unknown }).message;
+          if (m && typeof m === "object" && "content" in (m as Record<string, unknown>)) {
+            const c = (m as { content?: unknown }).content;
+            if (typeof c === "string") return c as string;
+          }
+        }
+        return typeof out.raw === "string" ? (out.raw as string) : out.text;
+      })();
+      const normalized = msgContent
+        // convert escaped newlines ("\\n" / "\\r\\n") into actual newlines
+        .replace(/\\r\\n/g, "\n")
+        .replace(/\\n/g, "\n")
+        .replace(/\\r/g, "\n")
+        // normalize any actual CRLF to LF
+        .replace(/\r\n/g, "\n");
+      setResult(normalized);
       setStatus("Done");
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -74,4 +92,3 @@ export default function SummaryPanel() {
     </section>
   );
 }
-
