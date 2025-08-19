@@ -40,4 +40,15 @@ describe('SummaryPanel', () => {
     const ta = await screen.findByLabelText(/Summary result/i)
     expect((ta as HTMLTextAreaElement).value).toBe('line1\nline2')
   })
+
+  it('copies summary result to previous on button click', async () => {
+    render(<SummaryPanel />)
+    fireEvent.change(screen.getByLabelText(/Text to summarize/i), { target: { value: 'hello world' } })
+    fireEvent.click(screen.getByRole('button', { name: /Summarize/ }))
+    const resultTa = await screen.findByLabelText(/Summary result/i)
+    const resultVal = (resultTa as HTMLTextAreaElement).value
+    fireEvent.click(screen.getByRole('button', { name: /Copy result to previous/i }))
+    const prevTa = screen.getByLabelText(/Previous content/i) as HTMLTextAreaElement
+    expect(prevTa.value).toBe(resultVal)
+  })
 })

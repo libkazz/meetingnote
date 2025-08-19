@@ -96,6 +96,15 @@ export default function SummaryPanel({ value, onChange }: Props) {
           style={{ width: "100%" }}
         />
       </label>
+      <div className="toolbar">
+        <button
+          className="btn btn-secondary"
+          onClick={() => { setPrevious(result); showToast("Copied summary to previous"); }}
+          disabled={!result.trim() || running}
+        >
+          📎 Copy result to previous
+        </button>
+      </div>
       <div className="toaster" aria-live="polite">
         {toast && <div className="toast">{toast}</div>}
       </div>
