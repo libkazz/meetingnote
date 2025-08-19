@@ -16,6 +16,7 @@ import { mergeAudio } from '../../src/lib/api/merge-client'
 describe('AudioRecorder component', () => {
   it('toggles start/stop and shows result', async () => {
     render(<AudioRecorder />)
+    expect(await screen.findByText(/Meeting ID:/)).toBeInTheDocument()
     const btn = await screen.findByRole('button', { name: /Start Recording/ })
     fireEvent.click(btn)
     expect(await screen.findByText(/Recording\.\.\./)).toBeInTheDocument()

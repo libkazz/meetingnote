@@ -26,7 +26,8 @@ export default function AudioRecorder() {
   const checkTimerRef = useRef<number | null>(null);
   const secondsTimerRef = useRef<number | null>(null);
   const sendingRef = useRef<boolean>(false);
-  const sessionIdRef = useRef<string>("");
+  // Meeting ID is generated per page load (reset on full reload)
+  const meetingIdRef = useRef<string>(`${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
   const chunkIndexRef = useRef<number>(0);
   const [mergedUrl, setMergedUrl] = useState<string>("");
 
@@ -54,7 +55,6 @@ export default function AudioRecorder() {
       silenceThresholdRms: silenceConfig.silenceThresholdRms,
       voiceDebounceMs: silenceConfig.voiceDebounceMs,
     });
-    sessionIdRef.current = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     chunkIndexRef.current = 0;
     try {
       await start({ deviceId, chunkMs: chunsizeCondition.chunkMs });
@@ -108,7 +108,7 @@ export default function AudioRecorder() {
       await sendBlob(blob, "final");
       // After sending final segment, trigger merge-audio
       setStatus("Merging audio...");
-      const merge = await mergeAudio(sessionIdRef.current);
+      const merge = await mergeAudio(meetingIdRef.current);
       if (merge.audio_link_url) {
         setMergedUrl(merge.audio_link_url);
         setStatus("Done");
@@ -154,7 +154,7 @@ export default function AudioRecorder() {
   async function sendBlob(blob: Blob, reason: string) {
     const out = await transcribeAudio(blob, {
       fields: {
-        recording_id: sessionIdRef.current,
+        recording_id: meetingIdRef.current,
         recording_index: ++chunkIndexRef.current,
         reason,
         elapsedSeconds: sinceLastSendSecRef.current,
@@ -212,6 +212,9 @@ export default function AudioRecorder() {
 
   return (
     <div className="stack">
+      <div className="row" style={{ justifyContent: "space-between" }}>
+        <div className="hint">Meeting ID: {meetingIdRef.current}</div>
+      </div>
       <div className="row" style={{ alignItems: "stretch" }}>
         <DeviceSelector
           devices={devices}
