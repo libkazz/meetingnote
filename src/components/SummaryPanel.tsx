@@ -77,7 +77,7 @@ export default function SummaryPanel({ value, onChange }: Props) {
           id="summaryPrevious"
           value={previous}
           onChange={(e) => setPrevious(e.target.value)}
-          rows={4}
+          rows={6}
           style={{ width: "100%" }}
         />
       </label>
@@ -102,7 +102,7 @@ export default function SummaryPanel({ value, onChange }: Props) {
           id="summaryResult"
           value={result}
           onChange={(e) => setResult(e.target.value)}
-          rows={8}
+          rows={12}
           style={{ width: "100%" }}
         />
       </label>
