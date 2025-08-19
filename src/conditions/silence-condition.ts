@@ -44,12 +44,8 @@ export function stepSilence(
   let noiseFloor = prev.noiseFloor;
   let voiceHoldMs = prev.voiceHoldMs;
   let silenceMs = prev.silenceMs;
-  // Debug vars for logging
+  // Internal state for classifying voice vs silence
   let isVoice = false;
-  let alphaUsed: number | undefined;
-  let marginUsed: number | undefined;
-  let thresholdUsed: number | undefined;
-  const mode = useAdaptive ? "adaptive" : "absolute";
 
   if (useAdaptive) {
     const alpha = cfg.noiseFloorAlpha ?? 0.95; // when no voice
@@ -62,13 +58,12 @@ export function stepSilence(
     noiseFloor = Math.max(0, Math.min(1, nextFloor));
     isSilent = !isVoice;
     if (isVoice) voiceHoldMs += dtMs; else voiceHoldMs = 0;
-    alphaUsed = alpha;
-    marginUsed = margin;
+    // update tracking variables only as needed
   } else {
     const th = cfg.silenceThresholdRms ?? 0.02;
     isSilent = rms < th;
     if (isSilent) voiceHoldMs = 0; else voiceHoldMs += dtMs;
-    thresholdUsed = th;
+    // threshold used implicitly
   }
 
   if (isSilent) {

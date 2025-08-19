@@ -120,8 +120,7 @@ export function useRecorder(): RecorderControls {
     }
     // Start recording. If chunkMs provided, request periodic dataavailable events
     try {
-      // @ts-expect-error - timeslice optional param may not be declared in some TS libs
-      rec.start(opts?.chunkMs);
+      rec.start(opts?.chunkMs as number | undefined);
     } catch {
       rec.start();
     }
@@ -217,8 +216,7 @@ export function useRecorder(): RecorderControls {
             };
             recRef.current = newRec;
             try {
-              // @ts-expect-error
-              newRec.start(lastStartOptsRef.current?.chunkMs);
+              newRec.start((lastStartOptsRef.current?.chunkMs ?? undefined) as number | undefined);
             } catch {
               newRec.start();
             }

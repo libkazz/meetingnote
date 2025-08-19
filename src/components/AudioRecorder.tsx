@@ -143,8 +143,8 @@ export default function AudioRecorder() {
   async function sendBlob(blob: Blob, reason: string) {
     const out = await transcribeAudio(blob, {
       fields: {
-        sessionId: sessionIdRef.current,
-        chunkIndex: ++chunkIndexRef.current,
+        recording_id: sessionIdRef.current,
+        recording_index: ++chunkIndexRef.current,
         reason,
         elapsedSeconds: sinceLastSendSecRef.current,
         mime: recMime || "audio/webm",
