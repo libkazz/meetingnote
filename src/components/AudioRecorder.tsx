@@ -8,13 +8,11 @@ import { createSilenceState, stepSilence, silenceConfig } from "../conditions/si
 import DeviceSelector from "./DeviceSelector";
 import WaveformCanvas from "./WaveformCanvas";
 import DiagnosticsPanel from "./DiagnosticsPanel";
-import TranscriptActions from "./TranscriptActions";
 import { mergeAudio } from "../lib/api/merge-client";
 
 type Props = { onTranscriptChange?: (text: string) => void };
 
 export default function AudioRecorder({ onTranscriptChange }: Props) {
-  const [result, setResult] = useState<string>("");
   const [active, setActive] = useState<boolean>(false);
   const [stopping, setStopping] = useState<boolean>(false);
   const { devices, deviceId, setDeviceId, ensureDevicesLoaded } = useAudioDevices();
@@ -30,6 +28,7 @@ export default function AudioRecorder({ onTranscriptChange }: Props) {
   const sendingRef = useRef<boolean>(false);
   // Meeting ID is generated per page load (reset on full reload)
   const meetingIdRef = useRef<string>(`${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  const transcriptRef = useRef<string>("");
   const chunkIndexRef = useRef<number>(0);
   const [mergedUrl, setMergedUrl] = useState<string>("");
   const [merging, setMerging] = useState<boolean>(false);
@@ -45,7 +44,7 @@ export default function AudioRecorder({ onTranscriptChange }: Props) {
   }, []);
 
   async function onStart() {
-    setResult("");
+    transcriptRef.current = "";
     try { onTranscriptChange?.(""); } catch { /* ignore */ }
     setMergedUrl("");
     setActive(true);
@@ -165,11 +164,10 @@ export default function AudioRecorder({ onTranscriptChange }: Props) {
         mime: recMime || "audio/webm",
       },
     });
-    setResult((prev) => {
-      const next = prev ? `${prev}\n${out.text}` : out.text;
-      try { onTranscriptChange?.(next); } catch { /* ignore */ }
-      return next;
-    });
+    const prev = transcriptRef.current;
+    const next = prev ? `${prev}\n${out.text}` : out.text;
+    transcriptRef.current = next;
+    try { onTranscriptChange?.(next); } catch { /* ignore */ }
   }
 
   async function mergeNow() {
@@ -200,42 +198,7 @@ export default function AudioRecorder({ onTranscriptChange }: Props) {
     return `${pad(m)}:${pad(s)}`;
   }
 
-  async function copyText() {
-    try {
-      if (!result) return;
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(result);
-      } else {
-        const ta = document.createElement("textarea");
-        ta.value = result;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
-      }
-      showToast("Copied to clipboard");
-    } catch {
-      showToast("Failed to copy");
-    }
-  }
-
-  function downloadText() {
-    try {
-      if (!result) return;
-      const blob = new Blob([result], { type: "text/plain;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `transcript-${Date.now()}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      showToast("Downloaded text");
-    } catch {
-      showToast("Failed to download");
-    }
-  }
+  // copy/download actions removed per requirements
 
   // Diagnostics moved to DiagnosticsPanel component
 
@@ -283,7 +246,7 @@ export default function AudioRecorder({ onTranscriptChange }: Props) {
       <WaveformCanvas analyser={analyser} height={80} />
       <div className="status" aria-live="polite">{status} {recMime && `(format: ${recMime})`}</div>
       <DiagnosticsPanel />
-      <TranscriptActions text={result} onCopy={copyText} onDownload={downloadText} />
+      {/* Transcript preview and copy/download actions removed */}
       <div className="toolbar">
         <button
           className="btn btn-secondary"
