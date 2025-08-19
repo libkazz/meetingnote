@@ -42,7 +42,8 @@ export default function SummaryPanel({ value, onChange }: Props) {
         // normalize any actual CRLF to LF
         .replace(/\r\n/g, "\n");
       setResult(normalized);
-      setStatus("Done");
+      // Do not show "Done" next to the Summarize button; keep status empty on success
+      setStatus("");
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setStatus(msg);
