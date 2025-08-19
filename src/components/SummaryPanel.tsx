@@ -55,9 +55,7 @@ export default function SummaryPanel({ value, onChange }: Props) {
 
   return (
     <div className="stack">
-      <div className="row">
-        <div className="brand">Summary</div>
-      </div>
+      {/* Summary title removed to save vertical space */}
       <label className="hint" htmlFor="summaryTarget" style={{ display: "grid" }}>
         Text to summarize
         <textarea

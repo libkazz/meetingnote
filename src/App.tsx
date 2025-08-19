@@ -11,9 +11,11 @@ export default function App() {
   return (
     <div className="container">
       <header className="header">
-        <div className="brand">Meeting Note</div>
+        <div className="row" style={{ alignItems: "baseline" }}>
+          <div className="brand">Meeting Note</div>
+          <div className="hint">Record and transcribe in the browser.</div>
+        </div>
       </header>
-      <p className="hint">Record in the browser, send for transcription.</p>
       <section className="card stack">
         <AudioRecorder
           onTranscriptChange={setSummaryText}
