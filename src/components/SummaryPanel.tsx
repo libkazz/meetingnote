@@ -72,7 +72,7 @@ export default function SummaryPanel() {
       </label>
       <div className="row">
         <button className="btn" onClick={onSummarize} disabled={running || !target.trim()}>
-          🧠 Summarize
+          {running ? "🧠 Summarizing..." : "🧠 Summarize"}
         </button>
         <div className="status" aria-live="polite">{status}</div>
       </div>

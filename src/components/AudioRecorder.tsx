@@ -96,6 +96,8 @@ export default function AudioRecorder() {
     // Stop timers
     if (checkTimerRef.current) { window.clearInterval(checkTimerRef.current); checkTimerRef.current = null; }
     if (secondsTimerRef.current) { window.clearInterval(secondsTimerRef.current); secondsTimerRef.current = null; }
+    // Immediately reflect sending state in UI
+    setStatus("Sending final segment...");
     const blob = await stop();
     try {
       await sendBlob(blob, "final");
@@ -204,22 +206,28 @@ export default function AudioRecorder() {
         />
       </div>
       <div className="row">
-        {(() => { const isActive = active || recording || status.startsWith("Recording");
+        {(() => {
+          const isActive = active || recording || status.startsWith("Recording");
+          const showRecordingBadge = status.startsWith("Recording");
           return (
             <>
               <button
                 className={isActive ? "btn btn-danger" : "btn"}
                 onClick={isActive ? onStop : onStart}
+                disabled={isActive && status.startsWith("Sending")}
               >
-                {isActive ? "⏹ Stop and Send" : "🎙️ Start Recording"}
+                {isActive
+                  ? (status.startsWith("Sending") ? "⏳ Sending..." : "⏹ Stop and Send")
+                  : "🎙️ Start Recording"}
               </button>
-              {isActive && (
+              {showRecordingBadge && (
                 <span className="badge" aria-live="polite">
                   <span className="dot" aria-hidden />Recording {formatTime(elapsed)}
                 </span>
               )}
             </>
-          ); })()}
+          );
+        })()}
       </div>
       <WaveformCanvas analyser={analyser} height={80} />
       <div className="status" aria-live="polite">{status} {recMime && `(format: ${recMime})`}</div>
