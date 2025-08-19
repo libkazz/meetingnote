@@ -12,8 +12,8 @@ export default function App() {
       <header className="header">
         <div className="brand">Meeting Note</div>
       </header>
+      <p className="hint">Record in the browser, send for transcription.</p>
       <section className="card stack">
-        <p className="hint">Record in the browser, send to n8n for transcription.</p>
         <AudioRecorder
           onTranscriptChange={setSummaryText}
           onReady={(api) => { mergeApiRef.current = api; }}
