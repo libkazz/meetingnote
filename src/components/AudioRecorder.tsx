@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAudioDevices } from "../hooks/use-audio-devices";
 import { useRecorder } from "../hooks/use-recorder";
 import { useToast } from "../hooks/use-toast";
@@ -7,12 +7,10 @@ import { chunsizeCondition } from "../conditions/chunksize-condition";
 import { createSilenceState, stepSilence, silenceConfig } from "../conditions/silence-condition";
 import DeviceSelector from "./DeviceSelector";
 import WaveformCanvas from "./WaveformCanvas";
-import DiagnosticsPanel from "./DiagnosticsPanel";
 import { mergeAudio } from "../lib/api/merge-client";
+type Props = { onTranscriptChange?: (text: string) => void; onReady?: (api: { mergeNow: () => Promise<void> }) => void };
 
-type Props = { onTranscriptChange?: (text: string) => void };
-
-export default function AudioRecorder({ onTranscriptChange }: Props) {
+export default function AudioRecorder({ onTranscriptChange, onReady }: Props) {
   const [active, setActive] = useState<boolean>(false);
   const [stopping, setStopping] = useState<boolean>(false);
   const { devices, deviceId, setDeviceId, ensureDevicesLoaded } = useAudioDevices();
@@ -170,7 +168,7 @@ export default function AudioRecorder({ onTranscriptChange }: Props) {
     try { onTranscriptChange?.(next); } catch { /* ignore */ }
   }
 
-  async function mergeNow() {
+  const mergeNow = useCallback(async () => {
     if (merging) return;
     try {
       setMerging(true);
@@ -189,7 +187,11 @@ export default function AudioRecorder({ onTranscriptChange }: Props) {
     } finally {
       setMerging(false);
     }
-  }
+  }, [merging, showToast, setStatus, setMergedUrl]);
+
+  useEffect(() => {
+    onReady?.({ mergeNow });
+  }, [onReady, mergeNow]);
 
   function pad(n: number): string { return n < 10 ? `0${n}` : String(n); }
   function formatTime(sec: number): string {
@@ -245,17 +247,7 @@ export default function AudioRecorder({ onTranscriptChange }: Props) {
       </div>
       <WaveformCanvas analyser={analyser} height={80} />
       <div className="status" aria-live="polite">{status} {recMime && `(format: ${recMime})`}</div>
-      <DiagnosticsPanel />
-      {/* Transcript preview and copy/download actions removed */}
-      <div className="toolbar">
-        <button
-          className="btn btn-secondary"
-          onClick={mergeNow}
-          disabled={recording || stopping || merging}
-        >
-          {merging ? "🔗 Merging..." : "🔗 Merge Audio Now"}
-        </button>
-      </div>
+      {/* Advanced controls moved below card */}
       {mergedUrl && (
         <div className="toolbar">
           <a className="btn btn-secondary" href={mergedUrl} download target="_blank" rel="noreferrer noopener">
