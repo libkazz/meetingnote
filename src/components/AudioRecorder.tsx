@@ -11,7 +11,9 @@ import DiagnosticsPanel from "./DiagnosticsPanel";
 import TranscriptActions from "./TranscriptActions";
 import { mergeAudio } from "../lib/api/merge-client";
 
-export default function AudioRecorder() {
+type Props = { onTranscriptChange?: (text: string) => void };
+
+export default function AudioRecorder({ onTranscriptChange }: Props) {
   const [result, setResult] = useState<string>("");
   const [active, setActive] = useState<boolean>(false);
   const [stopping, setStopping] = useState<boolean>(false);
@@ -44,6 +46,7 @@ export default function AudioRecorder() {
 
   async function onStart() {
     setResult("");
+    try { onTranscriptChange?.(""); } catch { /* ignore */ }
     setMergedUrl("");
     setActive(true);
     sinceLastSendSecRef.current = 0;
@@ -162,7 +165,11 @@ export default function AudioRecorder() {
         mime: recMime || "audio/webm",
       },
     });
-    setResult((prev) => (prev ? `${prev}\n${out.text}` : out.text));
+    setResult((prev) => {
+      const next = prev ? `${prev}\n${out.text}` : out.text;
+      try { onTranscriptChange?.(next); } catch { /* ignore */ }
+      return next;
+    });
   }
 
   async function mergeNow() {

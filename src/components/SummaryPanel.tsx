@@ -1,14 +1,21 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { summarizeText } from "../lib/api/summary-client";
 import { useToast } from "../hooks/use-toast";
 
-export default function SummaryPanel() {
+type Props = { value?: string; onChange?: (v: string) => void };
+
+export default function SummaryPanel({ value, onChange }: Props) {
   const [target, setTarget] = useState("");
   const [previous, setPrevious] = useState("");
   const [result, setResult] = useState("");
   const [status, setStatus] = useState("");
   const [running, setRunning] = useState(false);
   const { toast, showToast } = useToast();
+
+  // Sync internal state with controlled value if provided
+  useEffect(() => {
+    if (typeof value === "string") setTarget(value);
+  }, [value]);
 
   async function onSummarize() {
     if (!target.trim()) return;
@@ -54,8 +61,11 @@ export default function SummaryPanel() {
         Text to summarize
         <textarea
           id="summaryTarget"
-          value={target}
-          onChange={(e) => setTarget(e.target.value)}
+          value={typeof value === "string" ? value : target}
+          onChange={(e) => {
+            if (onChange) onChange(e.target.value);
+            else setTarget(e.target.value);
+          }}
           rows={6}
           style={{ width: "100%" }}
         />
