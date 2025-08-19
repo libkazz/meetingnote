@@ -10,25 +10,21 @@ type Props = {
 
 export default function DeviceSelector({ devices, value, onChange, disabled, ensureDevicesLoaded }: Props) {
   return (
-    <label htmlFor="inputDevice" className="hint" style={{ display: "grid" }}>
-      Input device
-      <select
-        id="inputDevice"
-        className="btn btn-secondary"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        onFocus={ensureDevicesLoaded}
-        onMouseDown={ensureDevicesLoaded}
-      >
-        <option value="">Default</option>
-        {devices.map((d) => (
-          <option key={d.deviceId} value={d.deviceId}>
-            {d.label || `Device ${d.deviceId.slice(0, 6)}`}
-          </option>
-        ))}
-      </select>
-    </label>
+    <select
+      id="inputDevice"
+      className="btn btn-secondary"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
+      onFocus={ensureDevicesLoaded}
+      onMouseDown={ensureDevicesLoaded}
+    >
+      <option value="">Default</option>
+      {devices.map((d) => (
+        <option key={d.deviceId} value={d.deviceId}>
+          {d.label || `Device ${d.deviceId.slice(0, 6)}`}
+        </option>
+      ))}
+    </select>
   );
 }
-

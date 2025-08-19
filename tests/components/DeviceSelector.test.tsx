@@ -19,11 +19,11 @@ describe('DeviceSelector', () => {
         disabled={false}
       />
     )
-    expect(screen.getByRole('combobox', { name: /Input device/i })).toBeInTheDocument()
+    expect(screen.getByRole('combobox')).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Default' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Mic A' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Mic B' })).toBeInTheDocument()
-    fireEvent.change(screen.getByRole('combobox', { name: /Input device/i }), { target: { value: 'b' } })
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'b' } })
     expect(onChange).toHaveBeenCalledWith('b')
   })
 
@@ -37,10 +37,9 @@ describe('DeviceSelector', () => {
         ensureDevicesLoaded={ensure}
       />
     )
-    const select = screen.getByRole('combobox', { name: /Input device/i })
+    const select = screen.getByRole('combobox')
     fireEvent.focus(select)
     fireEvent.mouseDown(select)
     expect(ensure).toHaveBeenCalled()
   })
 })
-

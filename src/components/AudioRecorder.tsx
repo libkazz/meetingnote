@@ -209,16 +209,7 @@ export default function AudioRecorder({ onTranscriptChange, onReady }: Props) {
       <div className="row" style={{ justifyContent: "space-between" }}>
         <div className="hint">Meeting ID: {meetingIdRef.current}</div>
       </div>
-      <div className="row" style={{ alignItems: "stretch" }}>
-        <DeviceSelector
-          devices={devices}
-          value={deviceId}
-          onChange={setDeviceId}
-          disabled={recording}
-          ensureDevicesLoaded={ensureDevicesLoaded}
-        />
-      </div>
-      <div className="row">
+      <div className="row" style={{ alignItems: "center" }}>
         {(() => {
           const isActive = active || recording || status.startsWith("Recording");
           const isBackgroundSending = recording && status.startsWith("Sending");
@@ -244,6 +235,15 @@ export default function AudioRecorder({ onTranscriptChange, onReady }: Props) {
             </>
           );
         })()}
+        <div style={{ marginLeft: "auto" }}>
+          <DeviceSelector
+            devices={devices}
+            value={deviceId}
+            onChange={setDeviceId}
+            disabled={recording}
+            ensureDevicesLoaded={ensureDevicesLoaded}
+          />
+        </div>
       </div>
       <WaveformCanvas analyser={analyser} height={80} />
       <div className="status" aria-live="polite">{status} {recMime && `(format: ${recMime})`}</div>
